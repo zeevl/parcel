@@ -14,7 +14,8 @@
     "node": ["@parcel/runtime-js"]
   },
   "packagers": {
-    "*.js": "@parcel/packager-js"
+    "*.js": "@parcel/packager-js",
+    "*.css": "@parcel/packager-css"
   },
   "resolvers": ["@parcel/resolver-default"],
   "reporters": ["@parcel/reporter-cli"]

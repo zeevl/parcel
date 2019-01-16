@@ -68,6 +68,7 @@ export default new Bundler({
             // If there is a current bundle, but this asset is of a different type,
             // separate it out into a parallel bundle in the same bundle group.
             if (context.bundle) {
+              context.bundle.assetGraph.removeAsset(node.value);
               let bundles = bundleGraph.getBundles(context.bundleGroup);
               let existingBundle = bundles.find(
                 b => b.type === node.value.type
@@ -105,7 +106,7 @@ export default new Bundler({
     // If multiple assets are always seen together in the same bundles, combine them together.
 
     let candidateBundles = new Map();
-
+    assetGraph.dumpGraphViz();
     assetGraph.traverseAssets((asset, context, traversal) => {
       // If this asset is duplicated in the minimum number of bundles, it is a candidate to be separated into its own bundle.
       let bundles = bundleGraph.findBundlesWithAsset(asset);

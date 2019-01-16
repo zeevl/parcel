@@ -1,26 +1,22 @@
 const assert = require('assert');
 const path = require('path');
 const fs = require('@parcel/fs');
-const {bundle, run, assertBundleTree, rimraf, ncp} = require('./utils');
+const {bundle, run, assertBundles, rimraf, ncp} = require('./utils');
 
-describe.skip('css', function() {
-  it('should produce two bundles when importing a CSS file', async function() {
+describe('css', function() {
+  it.only('should produce two bundles when importing a CSS file', async function() {
     let b = await bundle(path.join(__dirname, '/integration/css/index.js'));
 
-    await assertBundleTree(b, {
-      name: 'index.js',
-      assets: ['index.js', 'index.css', 'local.js', 'local.css'],
-      childBundles: [
-        {
-          name: 'index.map'
-        },
-        {
-          name: 'index.css',
-          assets: ['index.css', 'local.css'],
-          childBundles: []
-        }
-      ]
-    });
+    await assertBundles(b, [
+      {
+        name: 'index.js',
+        assets: ['index.js', 'local.js']
+      },
+      {
+        name: 'local.css',
+        assets: ['index.css', 'local.css']
+      }
+    ]);
 
     let output = await run(b);
     assert.equal(typeof output, 'function');
@@ -32,7 +28,7 @@ describe.skip('css', function() {
       path.join(__dirname, '/integration/dynamic-css/index.js')
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
       assets: [
         'index.js',
@@ -41,30 +37,6 @@ describe.skip('css', function() {
         'bundle-url.js',
         'js-loader.js',
         'css-loader.js'
-      ],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css'],
-          childBundles: []
-        },
-        {
-          type: 'map'
-        },
-        {
-          type: 'js',
-          assets: ['local.js', 'local.css'],
-          childBundles: [
-            {
-              type: 'css',
-              assets: ['local.css'],
-              childBundles: []
-            },
-            {
-              type: 'map'
-            }
-          ]
-        }
       ]
     });
 
@@ -78,20 +50,9 @@ describe.skip('css', function() {
       path.join(__dirname, '/integration/css-import/index.js')
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css', 'other.css', 'local.css'],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css', 'other.css', 'local.css'],
-          childBundles: []
-        },
-        {
-          name: 'index.map',
-          type: 'map'
-        }
-      ]
+      assets: ['index.js', 'index.css', 'other.css', 'local.css']
     });
 
     let output = await run(b);
@@ -111,24 +72,9 @@ describe.skip('css', function() {
   it('should support linking to assets with url() from CSS', async function() {
     let b = await bundle(path.join(__dirname, '/integration/css-url/index.js'));
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css'],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css'],
-          childBundles: []
-        },
-        {
-          type: 'map'
-        },
-        {
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }
-      ]
+      assets: ['index.js', 'index.css']
     });
 
     let output = await run(b);
@@ -166,24 +112,9 @@ describe.skip('css', function() {
       }
     );
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css'],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css'],
-          childBundles: []
-        },
-        {
-          type: 'map'
-        },
-        {
-          type: 'woff2',
-          assets: ['test.woff2'],
-          childBundles: []
-        }
-      ]
+      assets: ['index.js', 'index.css']
     });
 
     let output = await run(b);
@@ -216,19 +147,9 @@ describe.skip('css', function() {
   it('should support transforming with postcss', async function() {
     let b = await bundle(path.join(__dirname, '/integration/postcss/index.js'));
 
-    await assertBundleTree(b, {
+    await assertBundles(b, {
       name: 'index.js',
-      assets: ['index.js', 'index.css'],
-      childBundles: [
-        {
-          name: 'index.css',
-          assets: ['index.css'],
-          childBundles: []
-        },
-        {
-          type: 'map'
-        }
-      ]
+      assets: ['index.js', 'index.css']
     });
 
     let output = await run(b);

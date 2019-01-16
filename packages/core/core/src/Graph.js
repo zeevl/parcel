@@ -320,7 +320,7 @@ export default class Graph<TNode: Node> implements IGraph<TNode> {
 
       let edges = Array.from(this.edges).filter(edge => edge.from === node.id);
       for (let edge of edges) {
-        graph.addEdge(edge);
+        graph.addEdge({...edge});
       }
     }, node);
 

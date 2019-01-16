@@ -1,5 +1,5 @@
 {
-  "name": "@parcel/postcss-transformer",
+  "name": "@parcel/transformer-postcss",
   "version": "2.0.0",
   "license": "MIT",
   "repository": {

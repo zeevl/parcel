@@ -209,7 +209,9 @@ async function run(bundleGraph, globals, opts = {}) {
   }
 
   vm.createContext(ctx);
-  vm.runInContext(await fs.readFile(bundle.filePath), ctx);
+  let code = await fs.readFile(bundle.filePath, 'utf8');
+  console.log('CODE', code);
+  vm.runInContext(code, ctx);
 
   if (opts.require !== false) {
     if (ctx.parcelRequire) {
@@ -240,6 +242,8 @@ async function assertBundles(bundleGraph, bundles) {
       assets
     });
   });
+
+  console.log('ACTUAL BUNDLES', actualBundles);
 
   for (let bundle of bundles) {
     bundle.assets.sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1));
