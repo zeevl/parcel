@@ -10,7 +10,7 @@
   },
   "files": [
     "bin/",
-    "lib/",
+    "src/",
     "src/",
     "index.js"
   ],

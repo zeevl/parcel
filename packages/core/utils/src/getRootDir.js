@@ -28,6 +28,11 @@ export default function getRootDir(files: Array<FilePath>): FilePath {
       cur.dir = i > 1 ? curParts.slice(0, i).join(path.sep) : cur.root;
     }
   }
+  console.log('CUR', cur);
+  let rootDir = cur ? cur.dir : process.cwd();
+  if (!path.isAbsolute(rootDir)) {
+    rootDir = path.join(process.cwd(), rootDir);
+  }
 
-  return cur ? cur.dir : process.cwd();
+  return rootDir;
 }

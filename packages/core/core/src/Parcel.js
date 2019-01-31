@@ -123,6 +123,7 @@ export default class Parcel {
       }
 
       let bundleGraph = await this.bundle(assetGraph);
+      console.log('Packaging Bundles');
       await this.package(bundleGraph);
 
       this.reporterRunner.report({

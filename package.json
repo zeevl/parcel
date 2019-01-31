@@ -18,7 +18,8 @@
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
     "precommit": "lint-staged",
     "clean": "lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
-    "postinstall": "yarn build"
+    "postinstall": "yarn build",
+    "stat": "node ../recursive-stat/index.js"
   },
   "devDependencies": {
     "eslint": "^5.16.0",
