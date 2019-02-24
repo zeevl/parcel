@@ -129,7 +129,18 @@ function hmrApply(bundle, asset) {
   }
 
   if (modules[asset.id] || !bundle.parent) {
-    var fn = new Function('require', 'module', 'exports', asset.generated.js);
+    var fn;
+    if (asset.generated.map) {
+      fn = new Function(
+        'require',
+        'module',
+        'exports',
+        asset.generated.js + '\n' + asset.generated.map
+      );
+      console.log(asset.generated.js + '\n' + asset.generated.map)
+    } else {
+      fn = new Function('require', 'module', 'exports', asset.generated.js);
+    }
     asset.isNew = !modules[asset.id];
     modules[asset.id] = [fn, asset.deps];
   } else if (bundle.parent) {

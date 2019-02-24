@@ -1,5 +1,7 @@
 const http = require('http');
 const https = require('https');
+const path = require('path');
+const SourceMap = require('./SourceMap');
 const WebSocket = require('ws');
 const generateCertificate = require('./utils/generateCertificate');
 const getCertificate = require('./utils/getCertificate');
@@ -77,21 +79,42 @@ class HMRServer {
         type: 'reload'
       });
     } else {
-      this.broadcast({
-        type: 'update',
-        assets: assets.map(asset => {
+      let processedAssets = Promise.all(
+        assets.map(async asset => {
           let deps = {};
           for (let [dep, depAsset] of asset.depAssets) {
             deps[dep.name] = depAsset.id;
           }
 
+          let map;
+          if (asset.generated.map) {
+            const output = (await new SourceMap().addMap(
+              asset.generated.map
+            )).stringify(
+              null,
+              path.relative(asset.options.outDir, asset.options.rootDir)
+            );
+            map = `//# sourceMappingURL=data:application/json;charset=utf-8;base64,${Buffer.from(
+              output
+            ).toString('base64')}`;
+          }
           return {
             id: asset.id,
-            generated: asset.generated,
+            generated: {
+              ...asset.generated,
+              map
+            },
             deps: deps
           };
         })
-      });
+      );
+
+      processedAssets.then(a =>
+        this.broadcast({
+          type: 'update',
+          assets: a
+        })
+      );
     }
   }
 
