@@ -110,7 +110,7 @@ class CSSAsset extends Asset {
     });
   }
 
-  async transform() {
+  async pretransform() {
     await postcssTransform(this);
   }
 

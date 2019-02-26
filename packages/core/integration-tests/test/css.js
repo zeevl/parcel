@@ -514,6 +514,24 @@ describe('css', function() {
     assert(composes6Classes[2].startsWith('_test-2_'));
   });
 
+  it('should support using postcss for importing', async function() {
+    let b = await bundle(
+      path.join(__dirname, '/integration/postcss-import/style.css')
+    );
+
+    await assertBundleTree(b, {
+      name: 'style.css',
+      assets: ['style.css', 'config.css'],
+      childBundles: []
+    });
+
+    let css = await fs.readFile(
+      path.join(__dirname, '/dist/style.css'),
+      'utf8'
+    );
+    assert(css.split('red') - 1, 2);
+  });
+
   it('should minify CSS in production mode', async function() {
     let b = await bundle(
       path.join(__dirname, '/integration/cssnano/index.js'),
