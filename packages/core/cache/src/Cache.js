@@ -7,6 +7,7 @@ import {md5FromString} from '@parcel/utils/src/md5';
 import objectHash from '@parcel/utils/src/objectHash';
 import logger from '@parcel/logger';
 import type {
+  AssetOutput,
   FilePath,
   ParcelOptions,
   JSONObject,
@@ -143,16 +144,19 @@ export class Cache {
     return data;
   }
 
-  async readBlobs(asset: Asset): Promise<void> {
-    await Promise.all(
-      Object.keys(asset.output).map(async blobKey => {
-        if (asset.output[blobKey] instanceof CacheReference) {
-          asset.output[blobKey] = await this.readBlob(
-            asset.output[blobKey].filePath
-          );
-        }
-      })
-    );
+  async readBlobs(asset: Asset): Promise<AssetOutput> {
+    let output = {};
+
+    for (let [key, value] of Object.entries(asset.output)) {
+      if (value instanceof CacheReference) {
+        output[key] = await this.readBlob(value.filePath);
+      } else {
+        output[key] = value;
+      }
+    }
+
+    // $FlowFixMe
+    return output;
   }
 
   async read(filePath: FilePath, env: Environment): Promise<CacheEntry | null> {

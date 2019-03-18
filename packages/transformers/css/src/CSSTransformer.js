@@ -1,4 +1,6 @@
 // @flow
+
+import invariant from 'assert';
 import {Transformer} from '@parcel/plugin';
 import postcss from 'postcss';
 import valueParser from 'postcss-value-parser';
@@ -10,6 +12,7 @@ const PROTOCOL_RE = /^[a-z]+:/;
 
 function canHaveDependencies(asset) {
   let {filePath, code} = asset;
+  invariant(typeof code === 'string');
   return !/\.css$/.test(filePath) || IMPORT_RE.test(code) || URL_RE.test(code);
 }
 
@@ -125,6 +128,7 @@ export default new Transformer({
   generate(asset) {
     let code;
     if (!asset.ast || !asset.ast.isDirty) {
+      invariant(typeof asset.code === 'string');
       code = asset.code;
     } else {
       code = '';

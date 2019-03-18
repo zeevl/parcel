@@ -4,6 +4,8 @@ import type {
   Asset as IAsset,
   AssetOutput,
   AST,
+  CachedAssetOutput,
+  CacheReference,
   Config,
   Dependency as IDependency,
   DependencyOptions,
@@ -15,6 +17,7 @@ import type {
   Stats,
   TransformerResult
 } from '@parcel/types';
+import invariant from 'assert';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
 import {loadConfig} from '@parcel/utils/src/config';
 import Cache from '@parcel/cache';
@@ -29,7 +32,7 @@ type AssetOptions = {|
   ast?: ?AST,
   dependencies?: Array<IDependency>,
   connectedFiles?: Array<File>,
-  output?: AssetOutput,
+  output?: CachedAssetOutput,
   outputHash?: string,
   env: Environment,
   meta?: Meta,
@@ -41,11 +44,11 @@ export default class Asset implements IAsset {
   hash: string;
   filePath: FilePath;
   type: string;
-  code: string;
+  code: CacheReference | string;
   ast: ?AST;
   dependencies: Array<IDependency>;
   connectedFiles: Array<File>;
-  output: AssetOutput;
+  output: CachedAssetOutput;
   outputHash: string;
   env: Environment;
   meta: Meta;
@@ -116,6 +119,7 @@ export default class Asset implements IAsset {
 
   createChildAsset(result: TransformerResult) {
     let code = (result.output && result.output.code) || result.code || '';
+    invariant(typeof code === 'string');
     let opts: AssetOptions = {
       hash: this.hash || md5FromString(code),
       filePath: this.filePath,
@@ -146,9 +150,8 @@ export default class Asset implements IAsset {
     return asset;
   }
 
-  async getOutput() {
-    await Cache.readBlobs(this);
-    return this.output;
+  async getOutput(): Promise<AssetOutput> {
+    return Cache.readBlobs(this);
   }
 
   async getConfig(

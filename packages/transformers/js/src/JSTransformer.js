@@ -1,4 +1,6 @@
 // @flow
+
+import invariant from 'assert';
 import semver from 'semver';
 import generate from '@babel/generator';
 import {Transformer} from '@parcel/plugin';
@@ -22,7 +24,7 @@ const WORKER_RE = /\bnew\s*(?:Shared)?Worker\s*\(/;
 // const SOURCEMAP_RE = /\/\/\s*[@#]\s*sourceMappingURL\s*=\s*([^\s]+)/;
 // const DATA_URL_RE = /^data:[^;]+(?:;charset=[^;]+)?;base64,(.*)/;
 
-function canHaveDependencies(code) {
+function canHaveDependencies(code: string) {
   return (
     IMPORT_RE.test(code) ||
     GLOBAL_RE.test(code) ||
@@ -37,6 +39,7 @@ export default new Transformer({
   },
 
   async parse(asset /*, config , options */) {
+    invariant(typeof asset.code === 'string');
     if (
       !canHaveDependencies(asset.code) &&
       !ENV_RE.test(asset.code) &&
@@ -66,21 +69,23 @@ export default new Transformer({
     }
 
     let ast = asset.ast;
+    let code = asset.code;
+    invariant(typeof code === 'string');
 
     // Inline environment variables
-    if (!asset.env.isNode() && ENV_RE.test(asset.code)) {
+    if (!asset.env.isNode() && ENV_RE.test(code)) {
       walk.simple(ast.program, envVisitor, asset);
     }
 
     // Collect dependencies
-    if (canHaveDependencies(asset.code) || ast.isDirty) {
+    if (canHaveDependencies(code) || ast.isDirty) {
       walk.ancestor(ast.program, collectDependencies, asset);
     }
 
     if (!asset.env.isNode()) {
       // Inline fs calls
       let fsDep = asset.dependencies.find(dep => dep.moduleSpecifier === 'fs');
-      if (fsDep && FS_RE.test(asset.code)) {
+      if (fsDep && FS_RE.test(code)) {
         // Check if we should ignore fs calls
         // See https://github.com/defunctzombie/node-browser-resolve#skip
         let pkg = await asset.getPackage();
@@ -96,7 +101,7 @@ export default new Transformer({
       }
 
       // Insert node globals
-      if (GLOBAL_RE.test(asset.code)) {
+      if (GLOBAL_RE.test(code)) {
         asset.meta.globals = new Map();
         walk.ancestor(ast.program, insertGlobals, asset);
       }
@@ -121,6 +126,7 @@ export default new Transformer({
   },
 
   async generate(asset /*, config, options*/) {
+    invariant(typeof asset.code === 'string');
     let res = {
       code: asset.code
     };

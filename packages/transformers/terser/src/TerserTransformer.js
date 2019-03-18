@@ -1,5 +1,6 @@
 // @flow
 
+import invariant from 'assert';
 import nullthrows from 'nullthrows';
 import {minify} from 'terser';
 import {Transformer} from '@parcel/plugin';
@@ -60,6 +61,7 @@ export default new Transformer({
       terserOptions = Object.assign({}, terserOptions, config);
     }
 
+    invariant(typeof asset.code === 'string');
     let result = minify(asset.code, terserOptions);
 
     // if (sourceMap && asset.output.map) {

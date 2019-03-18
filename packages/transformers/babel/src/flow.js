@@ -1,10 +1,13 @@
 // @flow
+
+import invariant from 'assert';
 import type {Asset} from '@parcel/types';
 
 /**
  * Generates a babel config for stripping away Flow types.
  */
 export default function getFlowConfig(asset: Asset) {
+  invariant(typeof asset.code === 'string');
   if (/^(\/{2}|\/\*+) *@flow/.test(asset.code.substring(0, 20))) {
     return {
       internal: true,

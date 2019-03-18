@@ -4,12 +4,14 @@ import type {
   Asset as IAsset,
   AssetOutput,
   CacheEntry,
+  CachedAssetOutput,
   File,
   Transformer,
   TransformerRequest,
   ParcelOptions
 } from '@parcel/types';
 import Asset from './Asset';
+import invariant from 'assert';
 import path from 'path';
 import clone from 'clone';
 import {md5FromString, md5FromFilePath} from '@parcel/utils/src/md5';
@@ -23,7 +25,7 @@ type Opts = {|
   options: ParcelOptions
 |};
 
-type GenerateFunc = ?(input: Asset) => Promise<AssetOutput>;
+type GenerateFunc = ?(input: Asset) => Promise<CachedAssetOutput>;
 
 export default class TransformerRunner {
   options: ParcelOptions;
@@ -243,6 +245,8 @@ async function finalize(asset: Asset, generate: GenerateFunc): Promise<Asset> {
 
   asset.ast = null;
   asset.code = '';
+
+  invariant(typeof asset.output.code === 'string');
   asset.outputHash = md5FromString(asset.output.code);
 
   return asset;

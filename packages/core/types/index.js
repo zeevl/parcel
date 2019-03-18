@@ -207,11 +207,11 @@ export interface Asset {
   hash: string;
   filePath: FilePath;
   type: string;
-  code: string;
+  code: CacheReference | string;
   ast: ?AST;
   dependencies: Array<Dependency>;
   connectedFiles: Array<File>;
-  output: AssetOutput;
+  output: CachedAssetOutput;
   outputHash: string;
   env: Environment;
   meta: Meta;
@@ -232,10 +232,15 @@ export type Stats = {|
   size: number
 |};
 
+export type CacheReference = {filePath: FilePath};
+export type CachedAssetOutput = {|
+  code: string | CacheReference,
+  map?: SourceMap | CacheReference
+|};
+
 export type AssetOutput = {|
   code: string,
-  map?: SourceMap,
-  [string]: Blob | JSONValue
+  map?: SourceMap
 |};
 
 export type SourceMap = JSONObject;
@@ -247,7 +252,7 @@ export type TransformerResult = {
   ast?: ?AST,
   dependencies?: Array<DependencyOptions>,
   connectedFiles?: Array<File>,
-  output?: AssetOutput,
+  output?: CachedAssetOutput,
   env?: EnvironmentOpts,
   meta?: Meta
 };
