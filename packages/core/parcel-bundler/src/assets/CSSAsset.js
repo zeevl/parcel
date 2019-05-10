@@ -31,6 +31,10 @@ class CSSAsset extends Asset {
   }
 
   collectDependencies() {
+    for (let dependency of this.ast.dependencies) {
+      this.addDependency(dependency, {includedInParent: true});
+    }
+
     this.ast.root.walkAtRules('import', rule => {
       let params = valueParser(rule.params);
       let [name, ...media] = params.nodes;
@@ -187,6 +191,7 @@ class CSSAst {
     this.css = css;
     this.root = root;
     this.dirty = false;
+    this.dependencies = [];
   }
 
   render() {

@@ -521,7 +521,7 @@ describe('css', function() {
 
     await assertBundleTree(b, {
       name: 'style.css',
-      assets: ['style.css', 'config.css'],
+      assets: ['style.css'],
       childBundles: []
     });
 
@@ -529,7 +529,7 @@ describe('css', function() {
       path.join(__dirname, '/dist/style.css'),
       'utf8'
     );
-    assert(css.split('red') - 1, 2);
+    assert.equal(css.split('red').length - 1, 2);
   });
 
   it('should minify CSS in production mode', async function() {

@@ -18,6 +18,9 @@ module.exports = async function(asset) {
 
   asset.ast.css = res.css;
   asset.ast.dirty = false;
+  asset.ast.dependencies = res.messages
+    .filter(msg => msg.type === 'dependency')
+    .map(msg => msg.file);
 };
 
 async function getConfig(asset) {
