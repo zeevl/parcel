@@ -21,7 +21,6 @@ const helpers = getExisting(
 
 const DYNAMIC_REQUIRE_TEMPLATE = template(`function $parcel$require(mod){
   CODE
-  return require(mod);
 }`);
 
 class JSConcatPackager extends Packager {
@@ -454,34 +453,46 @@ class JSConcatPackager extends Packager {
 
     this.statements.unshift(
       DYNAMIC_REQUIRE_TEMPLATE({
-        CODE: [...this.dynamicRequires].reduce(
-          /*
-          if(mod === 'id'){
-            $id$init()
-            return $id$exports;
-          } else {
-            acc;
-          }
-        */
-          (acc, [id, name]) => {
-            const mod = this.resolveModule(id, name).id;
-            return t.ifStatement(
-              t.binaryExpression(
-                '===',
-                t.identifier('mod'),
-                t.stringLiteral(mod)
-              ),
-              t.blockStatement([
-                t.expressionStatement(
-                  t.CallExpression(t.identifier(`$${mod}$init`), [])
+        CODE: [
+          [...this.dynamicRequires].reduce(
+            /*
+              if(mod === 'id'){
+                $id$init()
+                return $id$exports;
+              } else {
+                acc;
+              }
+            */
+            (acc, [id, name]) => {
+              const mod = this.resolveModule(id, name).id;
+              return t.ifStatement(
+                t.binaryExpression(
+                  '===',
+                  t.identifier('mod'),
+                  t.stringLiteral(mod)
                 ),
-                t.returnStatement(t.identifier(`$${mod}$exports`))
-              ]),
-              acc
-            );
-          },
-          null
-        )
+                t.blockStatement([
+                  t.expressionStatement(
+                    t.CallExpression(t.identifier(`$${mod}$init`), [])
+                  ),
+                  t.returnStatement(t.identifier(`$${mod}$exports`))
+                ]),
+                acc
+              );
+            },
+            null
+          ),
+          t.expressionStatement(
+            t.CallExpression(
+              t.identifier(
+                this.options.target === 'node'
+                  ? 'require'
+                  : '$parcel$missingModule'
+              ),
+              [t.identifier('mod')]
+            )
+          )
+        ]
       })
     );
 
