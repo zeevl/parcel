@@ -19,6 +19,11 @@ const helpers = getExisting(
   path.join(__dirname, '../builtins/helpers.js')
 );
 
+const DYNAMIC_REQUIRE_TEMPLATE = template(`function $parcel$require(mod){
+  CODE
+  return require(mod);
+}`);
+
 class JSConcatPackager extends Packager {
   async start() {
     this.addedAssets = new Set();
@@ -448,13 +453,11 @@ class JSConcatPackager extends Packager {
     let included = new Set();
 
     this.statements.unshift(
-      template(`function $parcel$require(mod){
-      CODE
-      return require(mod);
-    }`)({
+      DYNAMIC_REQUIRE_TEMPLATE({
         CODE: [...this.dynamicRequires].reduce(
           /*
           if(mod === 'id'){
+            $id$init()
             return $id$exports;
           } else {
             acc;
@@ -469,6 +472,9 @@ class JSConcatPackager extends Packager {
                 t.stringLiteral(mod)
               ),
               t.blockStatement([
+                t.expressionStatement(
+                  t.CallExpression(t.identifier(`$${mod}$init`), [])
+                ),
                 t.returnStatement(t.identifier(`$${mod}$exports`))
               ]),
               acc
