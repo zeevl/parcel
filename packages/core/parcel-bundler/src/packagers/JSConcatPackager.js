@@ -451,11 +451,12 @@ class JSConcatPackager extends Packager {
   async end() {
     let included = new Set();
 
-    this.statements.unshift(
-      DYNAMIC_REQUIRE_TEMPLATE({
-        CODE: [
-          [...this.dynamicRequires].reduce(
-            /*
+    if (this.dynamicRequires.size) {
+      this.statements.unshift(
+        DYNAMIC_REQUIRE_TEMPLATE({
+          CODE: [
+            [...this.dynamicRequires].reduce(
+              /*
               if(mod === 'id'){
                 $id$init()
                 return $id$exports;
@@ -463,38 +464,39 @@ class JSConcatPackager extends Packager {
                 acc;
               }
             */
-            (acc, [id, name]) => {
-              const mod = this.resolveModule(id, name).id;
-              return t.ifStatement(
-                t.binaryExpression(
-                  '===',
-                  t.identifier('mod'),
-                  t.stringLiteral(mod)
-                ),
-                t.blockStatement([
-                  t.expressionStatement(
-                    t.CallExpression(t.identifier(`$${mod}$init`), [])
+              (acc, [id, name]) => {
+                const mod = this.resolveModule(id, name).id;
+                return t.ifStatement(
+                  t.binaryExpression(
+                    '===',
+                    t.identifier('mod'),
+                    t.stringLiteral(mod)
                   ),
-                  t.returnStatement(t.identifier(`$${mod}$exports`))
-                ]),
-                acc
-              );
-            },
-            null
-          ),
-          t.expressionStatement(
-            t.CallExpression(
-              t.identifier(
-                this.options.target === 'node'
-                  ? 'require'
-                  : '$parcel$missingModule'
-              ),
-              [t.identifier('mod')]
+                  t.blockStatement([
+                    t.expressionStatement(
+                      t.CallExpression(t.identifier(`$${mod}$init`), [])
+                    ),
+                    t.returnStatement(t.identifier(`$${mod}$exports`))
+                  ]),
+                  acc
+                );
+              },
+              null
+            ),
+            t.expressionStatement(
+              t.CallExpression(
+                t.identifier(
+                  this.options.target === 'node'
+                    ? 'require'
+                    : '$parcel$missingModule'
+                ),
+                [t.identifier('mod')]
+              )
             )
-          )
-        ]
-      })
-    );
+          ]
+        })
+      );
+    }
 
     for (let asset of this.bundle.assets) {
       this.statements.push(...this.addDeps(asset, included));
