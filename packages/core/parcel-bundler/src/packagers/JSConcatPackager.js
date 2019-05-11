@@ -6,6 +6,7 @@ const getExisting = require('../utils/getExisting');
 const walk = require('babylon-walk');
 const babylon = require('@babel/parser');
 const t = require('@babel/types');
+const template = require('@babel/template').default;
 const {getName, getIdentifier} = require('../scope-hoisting/utils');
 
 const prelude = getExisting(
@@ -22,6 +23,7 @@ class JSConcatPackager extends Packager {
   async start() {
     this.addedAssets = new Set();
     this.assets = new Map();
+    this.dynamicRequires = new Set();
     this.exposedModules = new Set();
     this.externalModules = new Set();
     this.size = 0;
@@ -145,6 +147,10 @@ class JSConcatPackager extends Packager {
       (!asset.usedExports || asset.usedExports.size === 0)
     ) {
       return;
+    }
+
+    for (let mod of asset.cacheData.dynamicRequires) {
+      this.dynamicRequires.add(mod);
     }
 
     for (let [dep, mod] of asset.depAssets) {
@@ -359,8 +365,10 @@ class JSConcatPackager extends Packager {
         if (!t.isIdentifier(callee)) {
           return;
         }
-
-        if (callee.name === '$parcel$require') {
+        if (
+          callee.name === '$parcel$require' ||
+          callee.name === '$parcel$require$resolve'
+        ) {
           result.push(
             asset.depAssets.get(asset.dependencies.get(args[1].value))
           );
@@ -438,6 +446,39 @@ class JSConcatPackager extends Packager {
 
   async end() {
     let included = new Set();
+
+    this.statements.unshift(
+      template(`function $parcel$require(mod){
+      CODE
+      return require(mod);
+    }`)({
+        CODE: [...this.dynamicRequires].reduce(
+          /*
+          if(mod === 'id'){
+            return $id$exports;
+          } else {
+            acc;
+          }
+        */
+          (acc, [id, name]) => {
+            const mod = this.resolveModule(id, name).id;
+            return t.ifStatement(
+              t.binaryExpression(
+                '===',
+                t.identifier('mod'),
+                t.stringLiteral(mod)
+              ),
+              t.blockStatement([
+                t.returnStatement(t.identifier(`$${mod}$exports`))
+              ]),
+              acc
+            );
+          },
+          null
+        )
+      })
+    );
+
     for (let asset of this.bundle.assets) {
       this.statements.push(...this.addDeps(asset, included));
     }

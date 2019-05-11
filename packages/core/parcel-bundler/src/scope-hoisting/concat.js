@@ -138,9 +138,8 @@ module.exports = (packager, ast) => {
           !t.isStringLiteral(id) ||
           !t.isStringLiteral(source)
         ) {
-          throw new Error(
-            'invariant: invalid signature, expected : $parcel$require(number, string)'
-          );
+          // "dynamic"
+          return;
         }
 
         let asset = assets.get(id.value);

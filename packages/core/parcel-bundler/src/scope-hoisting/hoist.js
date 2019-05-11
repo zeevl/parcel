@@ -22,6 +22,7 @@ const EXPORT_ALL_TEMPLATE = template(
   '$parcel$exportWildcard(OLD_NAME, $parcel$require(ID, SOURCE))'
 );
 const REQUIRE_CALL_TEMPLATE = template('$parcel$require(ID, SOURCE)');
+const REQUIRE_CALL_TEMPLATE_DYNAMIC = template('$parcel$require(SOURCE)');
 const REQUIRE_RESOLVE_CALL_TEMPLATE = template(
   '$parcel$require$resolve(ID, SOURCE)'
 );
@@ -56,6 +57,7 @@ module.exports = {
       path.scope.crawl();
 
       asset.cacheData.imports = asset.cacheData.imports || Object.create(null);
+      asset.cacheData.dynamicRequires = asset.cacheData.dynamicRequires || [];
       asset.cacheData.exports = asset.cacheData.exports || Object.create(null);
       asset.cacheData.wildcards = asset.cacheData.wildcards || [];
       asset.cacheData.sideEffects = asset._package && hasSideEffects(asset);
@@ -310,10 +312,7 @@ module.exports = {
 
   CallExpression(path, asset) {
     let {callee, arguments: args} = path.node;
-    let ignore =
-      args.length !== 1 ||
-      !t.isStringLiteral(args[0]) ||
-      path.scope.hasBinding('require');
+    let ignore = args.length !== 1 || path.scope.hasBinding('require');
 
     if (ignore) {
       return;
@@ -322,7 +321,7 @@ module.exports = {
     if (t.isIdentifier(callee, {name: 'require'})) {
       let source = args[0].value;
       // Ignore require calls that were ignored earlier.
-      if (!asset.dependencies.has(source)) {
+      if (t.isStringLiteral(args[0]) && !asset.dependencies.has(source)) {
         return;
       }
 
@@ -344,15 +343,29 @@ module.exports = {
 
       // Generate a variable name based on the current asset id and the module name to require.
       // This will be replaced by the final variable name of the resolved asset in the packager.
-      path.replaceWith(
-        REQUIRE_CALL_TEMPLATE({
-          ID: t.stringLiteral(asset.id),
-          SOURCE: t.stringLiteral(args[0].value)
-        })
-      );
+      if (t.isStringLiteral(args[0])) {
+        path.replaceWith(
+          REQUIRE_CALL_TEMPLATE({
+            ID: t.stringLiteral(asset.id),
+            SOURCE: t.stringLiteral(source)
+          })
+        );
+      } else {
+        path.replaceWith(
+          REQUIRE_CALL_TEMPLATE_DYNAMIC({
+            SOURCE: args[0]
+          })
+        );
+      }
     }
 
-    if (t.matchesPattern(callee, 'require.resolve')) {
+    if (
+      t.matchesPattern(callee, 'require.resolve') &&
+      t.isStringLiteral(args[0])
+    ) {
+      const source = args[0].value;
+      asset.cacheData.dynamicRequires.push([asset.id, source]);
+      asset.dependencies.get(source).shouldWrap = true;
       path.replaceWith(
         REQUIRE_RESOLVE_CALL_TEMPLATE({
           ID: t.stringLiteral(asset.id),
