@@ -319,31 +319,31 @@ module.exports = {
     }
 
     if (t.isIdentifier(callee, {name: 'require'})) {
-      let source = args[0].value;
-      // Ignore require calls that were ignored earlier.
-      if (!t.isStringLiteral(args[0]) || !asset.dependencies.has(source)) {
-        return;
-      }
-
-      // If this require call does not occur in the top-level, e.g. in a function
-      // or inside an if statement, or if it might potentially happen conditionally,
-      // the module must be wrapped in a function so that the module execution order is correct.
-      let parent = path.getStatementParent().parentPath;
-      let bail = path.findParent(
-        p =>
-          p.isConditionalExpression() ||
-          p.isLogicalExpression() ||
-          p.isSequenceExpression()
-      );
-      if (!parent.isProgram() || bail) {
-        asset.dependencies.get(source).shouldWrap = true;
-      }
-
-      asset.cacheData.imports['$require$' + source] = [source, '*'];
-
-      // Generate a variable name based on the current asset id and the module name to require.
-      // This will be replaced by the final variable name of the resolved asset in the packager.
       if (t.isStringLiteral(args[0])) {
+        let source = args[0].value;
+        // Ignore require calls that were ignored earlier.
+        if (!asset.dependencies.has(source)) {
+          return;
+        }
+
+        // If this require call does not occur in the top-level, e.g. in a function
+        // or inside an if statement, or if it might potentially happen conditionally,
+        // the module must be wrapped in a function so that the module execution order is correct.
+        let parent = path.getStatementParent().parentPath;
+        let bail = path.findParent(
+          p =>
+            p.isConditionalExpression() ||
+            p.isLogicalExpression() ||
+            p.isSequenceExpression()
+        );
+        if (!parent.isProgram() || bail) {
+          asset.dependencies.get(source).shouldWrap = true;
+        }
+
+        asset.cacheData.imports['$require$' + source] = [source, '*'];
+
+        // Generate a variable name based on the current asset id and the module name to require.
+        // This will be replaced by the final variable name of the resolved asset in the packager.
         path.replaceWith(
           REQUIRE_CALL_TEMPLATE({
             ID: t.stringLiteral(asset.id),
