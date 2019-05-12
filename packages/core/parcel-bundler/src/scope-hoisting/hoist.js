@@ -321,7 +321,7 @@ module.exports = {
     if (t.isIdentifier(callee, {name: 'require'})) {
       let source = args[0].value;
       // Ignore require calls that were ignored earlier.
-      if (t.isStringLiteral(args[0]) && !asset.dependencies.has(source)) {
+      if (!t.isStringLiteral(args[0]) || !asset.dependencies.has(source)) {
         return;
       }
 

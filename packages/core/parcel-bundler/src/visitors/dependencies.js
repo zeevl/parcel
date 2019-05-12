@@ -53,7 +53,12 @@ module.exports = {
       args.length === 1 &&
       types.isStringLiteral(args[0]) &&
       !hasBinding(ancestors, 'require') &&
-      !isInFalsyBranch(ancestors);
+      !isInFalsyBranch(ancestors) &&
+      !(
+        node.leadingComments &&
+        node.leadingComments[0] &&
+        node.leadingComments[0].value == 'DYNAMIC'
+      );
 
     if (isRequireResolve) {
       let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
@@ -74,6 +79,10 @@ module.exports = {
 
       node.callee = requireTemplate().expression;
       node.arguments[0] = argTemplate({MODULE: args[0]}).expression;
+      node.arguments[0].leadingComments = [
+        {type: 'CommentBlock', value: 'DYNAMIC'}
+      ];
+      // TODO can't use path.setData(...) because this is walk.ancestors
       asset.isAstDirty = true;
       return;
     }
