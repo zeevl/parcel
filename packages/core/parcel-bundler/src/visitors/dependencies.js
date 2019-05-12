@@ -53,17 +53,22 @@ module.exports = {
       args.length === 1 &&
       types.isStringLiteral(args[0]) &&
       !hasBinding(ancestors, 'require') &&
-      !isInFalsyBranch(ancestors) &&
-      !(
+      !isInFalsyBranch(ancestors);
+
+    if (isRequireResolve) {
+      if (
         node.leadingComments &&
         node.leadingComments[0] &&
         node.leadingComments[0].value == 'DYNAMIC'
-      );
-
-    if (isRequireResolve) {
-      let optional = ancestors.some(a => types.isTryStatement(a)) || undefined;
-      addDependency(asset, args[0], {optional});
-      return;
+      ) {
+        node.leadingComments = [];
+        return;
+      } else {
+        let optional =
+          ancestors.some(a => types.isTryStatement(a)) || undefined;
+        addDependency(asset, args[0], {optional});
+        return;
+      }
     }
 
     let isDynamicImport =
