@@ -93,10 +93,9 @@ module.exports = (packager, ast) => {
           })
         );
 
-        let binding = path.scope.getBinding(getName(mod, 'exports'));
-        if (binding) {
-          binding.reference(decl.get('declarations.0.init'));
-        }
+        addIdentifierToBindings(decl.get('declarations.0.id'));
+        addIdentifierToBindings(decl.get('declarations.0.init.callee'));
+        addIdentifierToBindings(decl.get('declarations.0.init.arguments.0'));
 
         path.scope.registerDeclaration(decl);
       }
@@ -122,9 +121,13 @@ module.exports = (packager, ast) => {
   }
 
   function addIdentifierToBindings(path) {
-    const binding = path.scope.getProgramParent().getBinding(path.node.name);
-    if (binding) {
-      binding.reference(path);
+    if (path.isIdentifier()) {
+      const binding = path.scope.getProgramParent().getBinding(path.node.name);
+      if (binding) {
+        binding.reference(path);
+      }
+    } else if (path.isMemberExpression()) {
+      addIdentifierToBindings(path.get('object'));
     }
   }
 
@@ -164,8 +167,8 @@ module.exports = (packager, ast) => {
             );
           }
         } else {
-          let node;
           if (assets.get(mod.id)) {
+            let node;
             // Replace with nothing if the require call's result is not used.
             if (!isUnusedValue(path)) {
               let name = getName(mod, 'exports');
@@ -200,18 +203,32 @@ module.exports = (packager, ast) => {
             // function, if statement, or conditional expression.
             if (mod.cacheData.shouldWrap) {
               let call = t.callExpression(getIdentifier(mod, 'init'), []);
-              node = node ? t.sequenceExpression([call, node]) : call;
+              if (node) {
+                node = t.sequenceExpression([call, node]);
+                path.replaceWith(node);
+                addIdentifierToBindings(path.get('expressions.0.callee'));
+                addIdentifierToBindings(path.get('expressions.1'));
+              } else {
+                node = call;
+                path.replaceWith(node);
+                addIdentifierToBindings(path.get('callee'));
+              }
+
+              return;
+            } else if (node) {
+              path.replaceWith(node);
+              addIdentifierToBindings(path);
+              return;
             }
           } else {
-            node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)}).expression;
+            let node = REQUIRE_TEMPLATE({ID: t.stringLiteral(mod.id)})
+              .expression;
+            path.replaceWith(node);
+
+            return;
           }
 
-          if (node) {
-            path.replaceWith(node);
-            // addIdentifierToBindings(path);
-          } else {
-            path.remove();
-          }
+          path.remove();
         }
       } else if (callee.name === '$parcel$require$resolve') {
         let [id, source] = args;
@@ -282,6 +299,22 @@ module.exports = (packager, ast) => {
           }
 
           if (id.properties.length === 0) {
+            const initBinding = path.scope
+              .getProgramParent()
+              .getBinding(path.node.init.name);
+            if (initBinding) {
+              initBinding.referencePaths = initBinding.referencePaths.filter(
+                p => {
+                  if (p.node === path.node.init) {
+                    initBinding.dereference();
+                    return false;
+                  } else {
+                    return true;
+                  }
+                }
+              );
+            }
+
             path.remove();
           }
         } else if (t.isIdentifier(id)) {
@@ -296,9 +329,11 @@ module.exports = (packager, ast) => {
 
           for (let ref of binding.referencePaths) {
             ref.replaceWith(t.identifier(init));
+            addIdentifierToBindings(ref);
           }
 
           replacements.set(id, init);
+          path.scope.removeBinding(id);
           path.remove();
         }
       }
@@ -334,6 +369,7 @@ module.exports = (packager, ast) => {
           // Check if $id$export$name exists and if so, replace the node by it.
           if (identifier) {
             path.replaceWith(t.identifier(identifier));
+            addIdentifierToBindings(path);
           }
         }
       }

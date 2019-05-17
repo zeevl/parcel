@@ -6,9 +6,6 @@ const {removePathUpdateBinding} = require('./utils');
  * individual file by terser.
  */
 module.exports = function treeShake(scope) {
-  // Recrawl to get all bindings.
-  scope.crawl();
-
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
   // another one. That one will get removed in the next pass if it is now unreferenced.
@@ -26,9 +23,7 @@ module.exports = function treeShake(scope) {
 
       // Remove the binding and all references to it.
       binding.path.remove();
-      binding.referencePaths
-        .concat(binding.constantViolations)
-        .forEach(path => remove(path, scope));
+      binding.referencePaths.concat(binding.constantViolations).forEach(remove);
 
       scope.removeBinding(name);
       removed = true;
