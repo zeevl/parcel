@@ -5,7 +5,7 @@ const {removePathBindingRecursive} = require('./utils');
  * removing unused exports. All other dead code removal happens in workers on each
  * individual file by terser.
  */
-module.exports = function treeShake(scope) {
+function treeShake(scope) {
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
   // another one. That one will get removed in the next pass if it is now unreferenced.
@@ -29,7 +29,9 @@ module.exports = function treeShake(scope) {
       removed = true;
     });
   } while (removed);
-};
+}
+
+module.exports = treeShake;
 
 // Check if a binding is safe to remove and returns it if it is.
 function getUnusedBinding(path, name) {
