@@ -1,4 +1,5 @@
 const t = require('@babel/types');
+const walk = require('babylon-walk');
 
 function getName(asset, type, ...rest) {
   return (
@@ -23,6 +24,27 @@ function getExportIdentifier(asset, name) {
   return getIdentifier(asset, 'export', name);
 }
 
+function removePathUpdateBinding(path) {
+  (function updateScope(s) {
+    if (!s) return;
+
+    walk.simple(path.node, {
+      Identifier(node) {
+        const binding = s.getBinding(node.name);
+        if (binding) {
+          binding.referencePaths = binding.referencePaths.filter(
+            p => p.node !== node
+          );
+        }
+      }
+    });
+    updateScope(s.parent);
+  })(path.scope);
+
+  path.remove();
+}
+
 exports.getName = getName;
 exports.getIdentifier = getIdentifier;
 exports.getExportIdentifier = getExportIdentifier;
+exports.removePathUpdateBinding = removePathUpdateBinding;

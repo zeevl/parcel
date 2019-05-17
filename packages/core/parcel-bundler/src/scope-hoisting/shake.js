@@ -1,6 +1,5 @@
 const t = require('@babel/types');
-const walk = require('babylon-walk');
-
+const {removePathUpdateBinding} = require('./utils');
 /**
  * This is a small small implementation of dead code removal specialized to handle
  * removing unused exports. All other dead code removal happens in workers on each
@@ -95,25 +94,25 @@ function isUnusedWildcard(path) {
   );
 }
 
-function remove(path, scope) {
+function remove(path) {
   if (path.isAssignmentExpression()) {
     if (path.parentPath.isSequenceExpression()) {
       if (path.parent.expressions.length == 1) {
         // replace sequence expression with it's sole child
         path.parentPath.replaceWith(path);
-        remove(path.parentPath, scope);
+        remove(path.parentPath);
       } else {
-        removePathUpdateBinding(path, scope);
+        removePathUpdateBinding(path);
       }
     } else if (!path.parentPath.isExpressionStatement()) {
       path.replaceWith(path.node.right);
     } else {
-      removePathUpdateBinding(path, scope);
+      removePathUpdateBinding(path);
     }
   } else if (isExportAssignment(path)) {
-    remove(path.parentPath.parentPath, scope);
+    remove(path.parentPath.parentPath);
   } else if (isUnusedWildcard(path)) {
-    remove(path.parentPath, scope);
+    remove(path.parentPath);
   } else if (!path.removed) {
     if (
       path.parentPath.isSequenceExpression() &&
@@ -121,25 +120,9 @@ function remove(path, scope) {
     ) {
       // replace sequence expression with it's sole child
       path.parentPath.replaceWith(path);
-      remove(path.parentPath, scope);
+      remove(path.parentPath);
     } else {
-      removePathUpdateBinding(path, scope);
+      removePathUpdateBinding(path);
     }
   }
-}
-
-function removePathUpdateBinding(path, scope) {
-  const bindings = scope.bindings;
-  walk.simple(path.node, {
-    Identifier(node) {
-      const binding = scope.getBinding(node.name);
-      if (binding) {
-        binding.referencePaths = binding.referencePaths.filter(
-          p => p.node !== node
-        );
-      }
-    }
-  });
-
-  path.remove();
 }
