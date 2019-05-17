@@ -24,20 +24,26 @@ function getExportIdentifier(asset, name) {
   return getIdentifier(asset, 'export', name);
 }
 
+const VisitorRemovePathUpdateBinding = {
+  Identifier(node, scope) {
+    const binding = scope.getBinding(node.name);
+    if (binding) {
+      binding.referencePaths = binding.referencePaths.filter(p => {
+        if (p.node === node) {
+          binding.dereference();
+          return false;
+        } else {
+          return true;
+        }
+      });
+    }
+  }
+};
+
 function removePathUpdateBinding(path) {
   (function updateScope(s) {
     if (!s) return;
-
-    walk.simple(path.node, {
-      Identifier(node) {
-        const binding = s.getBinding(node.name);
-        if (binding) {
-          binding.referencePaths = binding.referencePaths.filter(
-            p => p.node !== node
-          );
-        }
-      }
-    });
+    walk.simple(path.node, VisitorRemovePathUpdateBinding, s);
     updateScope(s.parent);
   })(path.scope);
 

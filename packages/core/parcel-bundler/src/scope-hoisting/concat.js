@@ -121,6 +121,13 @@ module.exports = (packager, ast) => {
     );
   }
 
+  function addIdentifierToBindings(path) {
+    const binding = path.scope.getProgramParent().getBinding(path.node.name);
+    if (binding) {
+      binding.reference(path);
+    }
+  }
+
   traverse(ast, {
     CallExpression(path) {
       let {arguments: args, callee} = path.node;
@@ -201,6 +208,7 @@ module.exports = (packager, ast) => {
 
           if (node) {
             path.replaceWith(node);
+            // addIdentifierToBindings(path);
           } else {
             path.remove();
           }
@@ -347,6 +355,7 @@ module.exports = (packager, ast) => {
         }
 
         path.replaceWith(node);
+        addIdentifierToBindings(path);
         return;
       }
 

@@ -52,6 +52,7 @@ function hasSideEffects(asset, {sideEffects} = asset._package) {
 module.exports = {
   Program: {
     enter(path, asset) {
+      // Plugins usually leave the tree in a "dirty" state
       traverse.cache.clearScope();
       path.scope.crawl();
 
