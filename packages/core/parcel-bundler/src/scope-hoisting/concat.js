@@ -5,7 +5,7 @@ const traverse = require('@babel/traverse').default;
 const generate = require('@babel/generator').default;
 const treeShake = require('./shake');
 const mangleScope = require('./mangler');
-const {getName, getIdentifier} = require('./utils');
+const {getName, getIdentifier, removeBinding} = require('./utils');
 
 const EXPORTS_RE = /^\$([^$]+)\$exports$/;
 
@@ -184,9 +184,11 @@ module.exports = (packager, ast) => {
                 let binding = path.scope.getBinding(name);
                 if (binding && !binding.path.getData('hasESModuleFlag')) {
                   if (binding.path.node.init) {
-                    binding.path
+                    const expr = binding.path
                       .getStatementParent()
                       .insertAfter(ESMODULE_TEMPLATE({EXPORTS: name}));
+
+                    addIdentifierToBindings(expr[0].get('expression.callee'));
                   }
 
                   for (let path of binding.constantViolations) {
@@ -299,21 +301,7 @@ module.exports = (packager, ast) => {
           }
 
           if (id.properties.length === 0) {
-            const initBinding = path.scope
-              .getProgramParent()
-              .getBinding(path.node.init.name);
-            if (initBinding) {
-              initBinding.referencePaths = initBinding.referencePaths.filter(
-                p => {
-                  if (p.node === path.node.init) {
-                    initBinding.dereference();
-                    return false;
-                  } else {
-                    return true;
-                  }
-                }
-              );
-            }
+            removeBinding(path.node.init, path.scope.getProgramParent());
 
             path.remove();
           }
@@ -368,6 +356,9 @@ module.exports = (packager, ast) => {
 
           // Check if $id$export$name exists and if so, replace the node by it.
           if (identifier) {
+            // remove $id$export$name  binding
+            removeBinding(path.node.object, path.scope.getProgramParent());
+
             path.replaceWith(t.identifier(identifier));
             addIdentifierToBindings(path);
           }

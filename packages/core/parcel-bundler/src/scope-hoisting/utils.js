@@ -26,17 +26,7 @@ function getExportIdentifier(asset, name) {
 
 const VisitorRemovePathUpdateBinding = {
   Identifier(node, scope) {
-    const binding = scope.getBinding(node.name);
-    if (binding) {
-      binding.referencePaths = binding.referencePaths.filter(p => {
-        if (p.node === node) {
-          binding.dereference();
-          return false;
-        } else {
-          return true;
-        }
-      });
-    }
+    removeBinding(node, scope);
   }
 };
 
@@ -50,7 +40,22 @@ function removePathUpdateBinding(path) {
   path.remove();
 }
 
+function removeBinding(node, scope) {
+  const binding = scope.getBinding(node.name);
+  if (binding) {
+    binding.referencePaths = binding.referencePaths.filter(p => {
+      if (p.node === node) {
+        binding.dereference();
+        return false;
+      } else {
+        return true;
+      }
+    });
+  }
+}
+
 exports.getName = getName;
 exports.getIdentifier = getIdentifier;
 exports.getExportIdentifier = getExportIdentifier;
 exports.removePathUpdateBinding = removePathUpdateBinding;
+exports.removeBinding = removeBinding;
