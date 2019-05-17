@@ -1,5 +1,5 @@
 const t = require('@babel/types');
-const {removePathUpdateBinding} = require('./utils');
+const {removePathBindingRecursive} = require('./utils');
 /**
  * This is a small small implementation of dead code removal specialized to handle
  * removing unused exports. All other dead code removal happens in workers on each
@@ -97,12 +97,12 @@ function remove(path) {
         path.parentPath.replaceWith(path);
         remove(path.parentPath);
       } else {
-        removePathUpdateBinding(path);
+        removePathBindingRecursive(path, path.scope.getProgramParent());
       }
     } else if (!path.parentPath.isExpressionStatement()) {
       path.replaceWith(path.node.right);
     } else {
-      removePathUpdateBinding(path);
+      removePathBindingRecursive(path, path.scope.getProgramParent());
     }
   } else if (isExportAssignment(path)) {
     remove(path.parentPath.parentPath);
@@ -117,7 +117,7 @@ function remove(path) {
       path.parentPath.replaceWith(path);
       remove(path.parentPath);
     } else {
-      removePathUpdateBinding(path);
+      removePathBindingRecursive(path, path.scope.getProgramParent());
     }
   }
 }

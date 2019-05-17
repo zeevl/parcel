@@ -24,22 +24,6 @@ function getExportIdentifier(asset, name) {
   return getIdentifier(asset, 'export', name);
 }
 
-const VisitorRemovePathUpdateBinding = {
-  Identifier(node, scope) {
-    removeBinding(node, scope);
-  }
-};
-
-function removePathUpdateBinding(path) {
-  (function updateScope(s) {
-    if (!s) return;
-    walk.simple(path.node, VisitorRemovePathUpdateBinding, s);
-    updateScope(s.parent);
-  })(path.scope);
-
-  path.remove();
-}
-
 function removeBinding(node, scope) {
   const binding = scope.getBinding(node.name);
   if (binding) {
@@ -54,8 +38,19 @@ function removeBinding(node, scope) {
   }
 }
 
+const VisitorRemovePathBindingRecursive = {
+  Identifier(node, scope) {
+    removeBinding(node, scope);
+  }
+};
+
+function removePathBindingRecursive(path, scope) {
+  walk.simple(path.node, VisitorRemovePathBindingRecursive, scope);
+  path.remove();
+}
+
 exports.getName = getName;
 exports.getIdentifier = getIdentifier;
 exports.getExportIdentifier = getExportIdentifier;
-exports.removePathUpdateBinding = removePathUpdateBinding;
+exports.removePathBindingRecursive = removePathBindingRecursive;
 exports.removeBinding = removeBinding;
