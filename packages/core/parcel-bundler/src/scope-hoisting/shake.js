@@ -1,11 +1,15 @@
 const t = require('@babel/types');
+const walk = require('babylon-walk');
 
 /**
  * This is a small small implementation of dead code removal specialized to handle
  * removing unused exports. All other dead code removal happens in workers on each
- * individual file by babel-minify.
+ * individual file by terser.
  */
-function treeShake(scope) {
+module.exports = function treeShake(scope) {
+  // Recrawl to get all bindings.
+  scope.crawl();
+
   // Keep passing over all bindings in the scope until we don't remove any.
   // This handles cases where we remove one binding which had a reference to
   // another one. That one will get removed in the next pass if it is now unreferenced.
@@ -13,8 +17,6 @@ function treeShake(scope) {
   do {
     removed = false;
 
-    // Recrawl to get all bindings.
-    scope.crawl();
     Object.keys(scope.bindings).forEach(name => {
       let binding = getUnusedBinding(scope.path, name);
 
@@ -25,15 +27,15 @@ function treeShake(scope) {
 
       // Remove the binding and all references to it.
       binding.path.remove();
-      binding.referencePaths.concat(binding.constantViolations).forEach(remove);
+      binding.referencePaths
+        .concat(binding.constantViolations)
+        .forEach(path => remove(path, scope));
 
       scope.removeBinding(name);
       removed = true;
     });
   } while (removed);
-}
-
-module.exports = treeShake;
+};
 
 // Check if a binding is safe to remove and returns it if it is.
 function getUnusedBinding(path, name) {
@@ -93,25 +95,25 @@ function isUnusedWildcard(path) {
   );
 }
 
-function remove(path) {
+function remove(path, scope) {
   if (path.isAssignmentExpression()) {
     if (path.parentPath.isSequenceExpression()) {
       if (path.parent.expressions.length == 1) {
         // replace sequence expression with it's sole child
         path.parentPath.replaceWith(path);
-        remove(path.parentPath);
+        remove(path.parentPath, scope);
       } else {
-        path.remove();
+        removePathUpdateBinding(path, scope);
       }
     } else if (!path.parentPath.isExpressionStatement()) {
       path.replaceWith(path.node.right);
     } else {
-      path.remove();
+      removePathUpdateBinding(path, scope);
     }
   } else if (isExportAssignment(path)) {
-    remove(path.parentPath.parentPath);
+    remove(path.parentPath.parentPath, scope);
   } else if (isUnusedWildcard(path)) {
-    remove(path.parentPath);
+    remove(path.parentPath, scope);
   } else if (!path.removed) {
     if (
       path.parentPath.isSequenceExpression() &&
@@ -119,9 +121,25 @@ function remove(path) {
     ) {
       // replace sequence expression with it's sole child
       path.parentPath.replaceWith(path);
-      remove(path.parentPath);
+      remove(path.parentPath, scope);
     } else {
-      path.remove();
+      removePathUpdateBinding(path, scope);
     }
   }
+}
+
+function removePathUpdateBinding(path, scope) {
+  const bindings = scope.bindings;
+  walk.simple(path.node, {
+    Identifier(node) {
+      const binding = scope.getBinding(node.name);
+      if (binding) {
+        binding.referencePaths = binding.referencePaths.filter(
+          p => p.node !== node
+        );
+      }
+    }
+  });
+
+  path.remove();
 }
