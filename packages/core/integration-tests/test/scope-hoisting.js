@@ -952,6 +952,11 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, 5);
+      let contents = await fs.readFile(
+        path.join(__dirname, '/dist/a.js'),
+        'utf8'
+      );
+      assert(!contents.includes('foobar'));
     });
 
     it('eliminates CommonJS export object where possible', async function() {
