@@ -24,7 +24,7 @@ function getExportIdentifier(asset, name) {
   return getIdentifier(asset, 'export', name);
 }
 
-function removeBinding(node, scope) {
+function removeReference(node, scope) {
   const binding = scope.getBinding(node.name);
   if (binding) {
     binding.referencePaths = binding.referencePaths.filter(p => {
@@ -40,7 +40,7 @@ function removeBinding(node, scope) {
 
 const VisitorRemovePathBindingRecursive = {
   Identifier(node, scope) {
-    removeBinding(node, scope);
+    removeReference(node, scope);
   }
 };
 
@@ -53,4 +53,4 @@ exports.getName = getName;
 exports.getIdentifier = getIdentifier;
 exports.getExportIdentifier = getExportIdentifier;
 exports.removePathBindingRecursive = removePathBindingRecursive;
-exports.removeBinding = removeBinding;
+exports.removeReference = removeReference;

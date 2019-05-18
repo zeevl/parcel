@@ -5,7 +5,7 @@ const traverse = require('@babel/traverse').default;
 const generate = require('@babel/generator').default;
 const treeShake = require('./shake');
 const mangleScope = require('./mangler');
-const {getName, getIdentifier, removeBinding} = require('./utils');
+const {getName, getIdentifier, removeReference} = require('./utils');
 
 const EXPORTS_RE = /^\$([^$]+)\$exports$/;
 
@@ -310,12 +310,12 @@ module.exports = (packager, ast) => {
           }
 
           if (id.properties.length === 0) {
-            removeBinding(path.node.init, path.scope.getProgramParent());
+            removeReference(path.node.init, path.scope.getProgramParent());
             path.remove();
           }
         } else if (t.isIdentifier(id)) {
           replace(id.name, init.name, path);
-          removeBinding(init, path.scope.getProgramParent());
+          removeReference(init, path.scope.getProgramParent());
         }
 
         function replace(id, init, path) {
@@ -365,8 +365,8 @@ module.exports = (packager, ast) => {
 
           // Check if $id$export$name exists and if so, replace the node by it.
           if (identifier) {
-            // remove $id$export$name  binding
-            removeBinding(path.node.object, path.scope.getProgramParent());
+            // remove $id$export$name binding
+            removeReference(path.node.object, path.scope.getProgramParent());
 
             path.replaceWith(t.identifier(identifier));
             addIdentifierToBindings(path);
