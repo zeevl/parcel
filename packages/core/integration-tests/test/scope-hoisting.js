@@ -593,6 +593,12 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.equal(output, 2);
+
+      let contents = await fs.readFile(
+        path.join(__dirname, '/dist/a.js'),
+        'utf8'
+      );
+      assert(!contents.includes('5'));
     });
 
     it('supports default imports of commonjs modules', async function() {
