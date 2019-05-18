@@ -1,9 +1,16 @@
 // @flow
 
-import type {InitialParcelOptions, ParcelOptions, Stats} from '@parcel/types';
+import type {
+  BuildFailureEvent,
+  BuildSuccessEvent,
+  InitialParcelOptions,
+  ParcelOptions,
+  Stats
+} from '@parcel/types';
 import type {Bundle} from './types';
 import type InternalBundleGraph from './BundleGraph';
 
+import invariant from 'assert';
 import {Asset} from './public/Asset';
 import {BundleGraph} from './public/BundleGraph';
 import BundlerRunner from './BundlerRunner';
@@ -20,6 +27,8 @@ import MainAssetGraph from './public/MainAssetGraph';
 import dumpGraphToGraphViz from './dumpGraphToGraphViz';
 import resolveOptions from './resolveOptions';
 
+type BuildEvent = BuildSuccessEvent | BuildFailureEvent;
+
 export default class Parcel {
   #assetGraphBuilder; // AssetGraphBuilder
   #bundlerRunner; // BundlerRunner
@@ -27,10 +36,9 @@ export default class Parcel {
   #initialized = false; // boolean
   #initialOptions; // InitialParcelOptions;
   #reporterRunner; // ReporterRunner
-  #resolvedOptions; // ?ParcelOptions
+  #resolvedOptions = null; // ?ParcelOptions
   #runPackage; // (bundle: Bundle, bundleGraph: InternalBundleGraph) => Promise<Stats>;
-  // TODO: this should be private once we have Parcel.watch function
-  watcher;
+  watcherObservable: ?Observable<BuildEvent>; // Observable<BuildEvent>
 
   constructor(options: InitialParcelOptions) {
     this.#initialOptions = clone(options);
@@ -95,66 +103,79 @@ export default class Parcel {
     );
 
     this.#runPackage = this.#farm.mkhandle('runPackage');
-
-    await this.initializeWatcher();
+    this.#initialized = true;
   }
 
-  async initializeWatcher() {
-    let projectRoot = this.#resolvedOptions.projectRoot;
-    if (this.#resolvedOptions.watch) {
-      // TODO: ideally these should all be absolute paths already set up on #resolvedOptions
-      let targetDirs = this.#resolvedOptions.targets.map(target =>
-        path.resolve(process.cwd(), target.distDir)
-      );
-      let cacheDir = path.resolve(
-        process.cwd(),
-        this.#resolvedOptions.cacheDir
-      );
-      let vcsDirs = ['.git', '.hg'].map(dir => path.join(projectRoot, dir));
-      let ignore = [cacheDir, ...targetDirs, ...vcsDirs];
-      this.watcher = await watcher.subscribe(
-        projectRoot,
-        (err, events) => {
-          if (err) {
-            throw err;
-          }
-
-          this.#assetGraphBuilder.respondToFSEvents(events);
-          if (this.#assetGraphBuilder.isInvalid()) {
-            this.build().catch(() => {
-              // Do nothing, in watch mode reporters should alert the user something is broken, which
-              // allows Parcel to gracefully continue once the user makes the correct changes
-            });
-          }
-        },
-        {ignore}
-      );
+  watch(): Observable<BuildEvent> {
+    if (this.watcherObservable != null) {
+      return this.watcherObservable;
     }
 
-    this.#initialized = true;
+    this.watcherObservable = new SharedObservable(observer => {
+      let subscriptionPromise = (async () => {
+        if (!this.#initialized) {
+          await this.init();
+        }
+
+        observer.next(await this.build());
+
+        let resolvedOptions = nullthrows(this.#resolvedOptions);
+        let projectRoot = resolvedOptions.projectRoot;
+        let targetDirs = resolvedOptions.targets.map(target => target.distDir);
+        let vcsDirs = ['.git', '.hg'].map(dir => path.join(projectRoot, dir));
+        let ignore = [resolvedOptions.cacheDir, ...targetDirs, ...vcsDirs];
+
+        return watcher.subscribe(
+          projectRoot,
+          (err, events) => {
+            if (err) {
+              observer.error(err);
+              return;
+            }
+
+            this.#assetGraphBuilder.respondToFSEvents(events);
+            if (this.#assetGraphBuilder.isInvalid()) {
+              this.build()
+                .then(event => observer.next(event))
+                .catch(() => {
+                  // Do nothing, in watch mode reporters should alert the user something is broken, which
+                  // allows Parcel to gracefully continue once the user makes the correct changes
+                });
+            }
+          },
+          {ignore}
+        );
+      })();
+
+      subscriptionPromise.catch(err => observer.error(err));
+
+      return () =>
+        subscriptionPromise.then(async subscription => {
+          await subscription.unsubscribe();
+          this.watcherObservable = null;
+        });
+    });
+
+    return this.watcherObservable;
   }
 
   // `run()` returns `Promise<?BundleGraph>` because in watch mode it does not
   // return a bundle graph, but outside of watch mode it always will.
-  async run(): Promise<?BundleGraph> {
+  async run(): Promise<BundleGraph> {
     if (!this.#initialized) {
       await this.init();
     }
 
-    let resolvedOptions = nullthrows(this.#resolvedOptions);
-    try {
-      let graph = await this.build();
-      if (!resolvedOptions.watch) {
-        return graph;
-      }
-    } catch (e) {
-      if (!resolvedOptions.watch) {
-        throw e;
-      }
+    // $FlowFixMe
+    let event = await this.build();
+    if (nullthrows(this.#resolvedOptions).killWorkers !== false) {
+      await this.#farm.end();
     }
+    invariant(event.type === 'buildSuccess');
+    return event.bundleGraph;
   }
 
-  async build(): Promise<BundleGraph> {
+  async build(): Promise<BuildEvent> {
     try {
       this.#reporterRunner.report({
         type: 'buildStart'
@@ -164,36 +185,38 @@ export default class Parcel {
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
       dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
-      let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
-      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
+      let internalBundleGraph = await this.#bundlerRunner.bundle(assetGraph);
+      dumpGraphToGraphViz(internalBundleGraph, 'BundleGraph');
 
-      await packageBundles(bundleGraph, this.#runPackage);
+      await packageBundles(internalBundleGraph, this.#runPackage);
 
-      this.#reporterRunner.report({
+      let buildTime = Date.now() - startTime;
+      let bundleGraph = new BundleGraph(internalBundleGraph);
+
+      let event = {
         type: 'buildSuccess',
         changedAssets: new Map(
           Array.from(changedAssets).map(([id, asset]) => [id, new Asset(asset)])
         ),
         assetGraph: new MainAssetGraph(assetGraph),
-        bundleGraph: new BundleGraph(bundleGraph),
-        buildTime: Date.now() - startTime
-      });
+        bundleGraph: bundleGraph,
+        buildTime
+      };
 
-      let resolvedOptions = nullthrows(this.#resolvedOptions);
-      if (!resolvedOptions.watch && resolvedOptions.killWorkers !== false) {
-        await this.#farm.end();
-      }
-
-      return new BundleGraph(bundleGraph);
-    } catch (e) {
-      if (!(e instanceof BuildAbortError)) {
-        await this.#reporterRunner.report({
+      this.#reporterRunner.report(event);
+      return event;
+    } catch (error) {
+      if (!(error instanceof BuildAbortError)) {
+        let event = {
           type: 'buildFailure',
-          error: e
-        });
+          error
+        };
+
+        await this.#reporterRunner.report(event);
+        return event;
       }
 
-      throw new BuildError(e);
+      throw new BuildError(error);
     }
   }
 }
@@ -215,6 +238,82 @@ function packageBundles(
   });
 
   return Promise.all(promises);
+}
+
+type Observer<T> = {|
+  next: T => void,
+  error: mixed => void,
+  complete: () => void
+|};
+
+type PartialObserver<T> = {|
+  next?: T => void,
+  error?: mixed => void,
+  complete?: () => void
+|};
+
+type Subscription = {|
+  unsubscribe: () => mixed
+|};
+
+class Observable<T> {
+  cb: (observer: Observer<T>) => () => mixed;
+  constructor(cb: (observer: Observer<T>) => () => mixed) {
+    this.cb = cb;
+  }
+  subscribe(observer?: PartialObserver<T>): Subscription {
+    return {
+      unsubscribe: this.cb({
+        // eslint-disable-next-line no-unused-vars
+        next: _ => {},
+        error: () => {},
+        complete: () => {},
+        ...observer
+      })
+    };
+  }
+}
+
+class SharedObservable<T> extends Observable<T> {
+  subscription: ?Subscription;
+  subscribers: Array<PartialObserver<T>> = [];
+
+  subscribe(observer?: PartialObserver<T>): Subscription {
+    this.subscribers.push(observer ?? {});
+
+    if (this.subscription == null) {
+      this.subscription = new Observable(this.cb).subscribe({
+        next: val => {
+          for (let subscriber of this.subscribers.slice()) {
+            subscriber.next && subscriber.next(val);
+          }
+        },
+        error: err => {
+          for (let subscriber of this.subscribers.slice()) {
+            subscriber.error && subscriber.error(err);
+          }
+        },
+        complete: () => {
+          for (let subscriber of this.subscribers.slice()) {
+            subscriber.complete && subscriber.complete();
+          }
+        }
+      });
+    }
+
+    return {
+      unsubscribe: () => {
+        let subscriberIndex = this.subscribers.indexOf(observer);
+        if (subscriberIndex > -1) {
+          this.subscribers.splice(subscriberIndex, 1);
+        }
+        if (this.subscribers.length === 0) {
+          nullthrows(this.subscription).unsubscribe();
+          this.subscription = null;
+        }
+      }
+    };
+  }
 }
 
 export class BuildError extends Error {
