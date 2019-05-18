@@ -189,10 +189,19 @@ module.exports = (packager, ast) => {
                       .insertAfter(ESMODULE_TEMPLATE({EXPORTS: name}));
 
                     addIdentifierToBindings(expr[0].get('expression.callee'));
+                    addIdentifierToBindings(
+                      expr[0].get('expression.arguments.0')
+                    );
                   }
 
                   for (let path of binding.constantViolations) {
-                    path.insertAfter(ESMODULE_TEMPLATE({EXPORTS: name}));
+                    const expr = path.insertAfter(
+                      ESMODULE_TEMPLATE({EXPORTS: name})
+                    );
+                    addIdentifierToBindings(expr[0].get('expression.callee'));
+                    addIdentifierToBindings(
+                      expr[0].get('expression.arguments.0')
+                    );
                   }
 
                   binding.path.setData('hasESModuleFlag', true);
