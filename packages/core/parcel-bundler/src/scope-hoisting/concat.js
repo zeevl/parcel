@@ -311,11 +311,11 @@ module.exports = (packager, ast) => {
 
           if (id.properties.length === 0) {
             removeBinding(path.node.init, path.scope.getProgramParent());
-
             path.remove();
           }
         } else if (t.isIdentifier(id)) {
           replace(id.name, init.name, path);
+          removeBinding(init, path.scope.getProgramParent());
         }
 
         function replace(id, init, path) {
