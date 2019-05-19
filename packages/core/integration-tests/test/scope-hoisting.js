@@ -1214,7 +1214,7 @@ describe('scope hoisting', function() {
       );
 
       let output = await run(b);
-      assert.deepEqual(output, 42);
+      assert.deepEqual(output, [42, 'MODULE_NOT_FOUND']);
     });
 
     it('should insert __esModule interop flag when importing from an ES module', async function() {

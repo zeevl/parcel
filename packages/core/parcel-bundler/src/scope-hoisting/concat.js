@@ -159,8 +159,9 @@ module.exports = (packager, ast) => {
         if (!mod) {
           if (asset.dependencies.get(source.value).optional) {
             path.replaceWith(
-              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)})
+              THROW_TEMPLATE({MODULE: t.stringLiteral(source.value)}).expression
             );
+            addIdentifierToBindings(path.get('callee'));
           } else {
             throw new Error(
               `Cannot find module "${source.value}" in asset ${id.value}`
