@@ -27,14 +27,12 @@ function getExportIdentifier(asset, name) {
 function removeReference(node, scope) {
   const binding = scope.getBinding(node.name);
   if (binding) {
-    binding.referencePaths = binding.referencePaths.filter(p => {
-      if (p.node === node) {
-        binding.dereference();
-        return false;
-      } else {
-        return true;
-      }
-    });
+    const i = binding.referencePaths.findIndex(v => v.node === node);
+    if (i >= 0) {
+      binding.dereference();
+      console.log(binding.referencePaths[i].node);
+      binding.referencePaths.splice(i, 1);
+    }
   }
 }
 
