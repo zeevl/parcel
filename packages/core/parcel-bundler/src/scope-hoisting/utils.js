@@ -30,7 +30,6 @@ function removeReference(node, scope) {
     const i = binding.referencePaths.findIndex(v => v.node === node);
     if (i >= 0) {
       binding.dereference();
-      console.log(binding.referencePaths[i].node);
       binding.referencePaths.splice(i, 1);
     }
   }
