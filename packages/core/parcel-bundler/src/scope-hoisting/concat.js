@@ -315,14 +315,14 @@ module.exports = (packager, ast) => {
             path.remove();
           }
         } else if (t.isIdentifier(id)) {
-          replace(id.name, init.name, path);
-          removeReference(init, path.scope.getProgramParent());
+          if (replace(id.name, init.name, path))
+            removeReference(init, path.scope.getProgramParent());
         }
 
         function replace(id, init, path) {
           let binding = path.scope.getBinding(id);
           if (!binding.constant) {
-            return;
+            return false;
           }
 
           for (let ref of binding.referencePaths) {
@@ -333,6 +333,7 @@ module.exports = (packager, ast) => {
           replacements.set(id, init);
           path.scope.removeBinding(id);
           path.remove();
+          return true;
         }
       }
     },
