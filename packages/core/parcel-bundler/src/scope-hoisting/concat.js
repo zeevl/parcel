@@ -122,7 +122,7 @@ module.exports = (packager, ast) => {
 
   function addIdentifierToBindings(path) {
     if (path.isIdentifier()) {
-      const binding = path.scope.getProgramParent().getBinding(path.node.name);
+      let binding = path.scope.getProgramParent().getBinding(path.node.name);
       if (binding) {
         binding.reference(path);
       }
@@ -185,7 +185,7 @@ module.exports = (packager, ast) => {
                 let binding = path.scope.getBinding(name);
                 if (binding && !binding.path.getData('hasESModuleFlag')) {
                   if (binding.path.node.init) {
-                    const expr = binding.path
+                    let expr = binding.path
                       .getStatementParent()
                       .insertAfter(ESMODULE_TEMPLATE({EXPORTS: name}));
 
@@ -196,7 +196,7 @@ module.exports = (packager, ast) => {
                   }
 
                   for (let path of binding.constantViolations) {
-                    const expr = path.insertAfter(
+                    let expr = path.insertAfter(
                       ESMODULE_TEMPLATE({EXPORTS: name})
                     );
                     addIdentifierToBindings(expr[0].get('expression.callee'));

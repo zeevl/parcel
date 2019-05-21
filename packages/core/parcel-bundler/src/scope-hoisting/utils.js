@@ -25,9 +25,9 @@ function getExportIdentifier(asset, name) {
 }
 
 function removeReference(node, scope) {
-  const binding = scope.getBinding(node.name);
+  let binding = scope.getBinding(node.name);
   if (binding) {
-    const i = binding.referencePaths.findIndex(v => v.node === node);
+    let i = binding.referencePaths.findIndex(v => v.node === node);
     if (i >= 0) {
       binding.dereference();
       binding.referencePaths.splice(i, 1);
