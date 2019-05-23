@@ -12,14 +12,25 @@ const babelConfig = require('./babel.config.js');
 const paths = {
   src: [
     'packages/*/*/src/**/*.js',
-    '!packages/examples/**/*',
-    '!packages/core/integration-tests/**/*'
+    '!packages/*/scope-hoisting/src/helpers.js',
+    '!**/loaders/**',
+    '!**/prelude.js',
+    '!packages/examples/**',
+    '!packages/core/integration-tests/**',
+    '!packages/core/workers/test/integration/**'
+  ],
+  otherSrc: [
+    'packages/*/*/src/**',
+    '!packages/**/*.js',
+    'packages/*/scope-hoisting/src/helpers.js',
+    'packages/*/*/src/**/loaders/**',
+    'packages/*/*/src/**/prelude.js'
   ],
   dest: 'packages'
 };
 
 exports.clean = function clean(cb) {
-  return rimraf('packages/*/*/lib', cb);
+  rimraf('packages/*/*/lib', cb);
 };
 
 function build() {
@@ -31,6 +42,11 @@ function build() {
   // https://github.com/mariocasciaro/gulp-clone/blob/4476fcf34a5336c2d33c2fc4a6ab2cd163e302e7/README.md
   // Which is licensed MIT
   return merge(
+    gulp
+      .src(paths.otherSrc)
+      .pipe(cache('build', {optimizeMemory: true}))
+      .pipe(renameStream(relative => relative.replace('src', 'lib')))
+      .pipe(gulp.dest(paths.dest)),
     sources
       .pipe(clone())
       .pipe(
