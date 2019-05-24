@@ -64,6 +64,7 @@ export default class Parcel {
     if (this.#initialized) {
       return;
     }
+    console.error('initing');
 
     let resolvedOptions: ParcelOptions = await resolveOptions(
       this.#initialOptions
@@ -243,7 +244,7 @@ export default class Parcel {
     code?: string
   }) {
     let [result] = await Promise.all([
-      this.#assetGraphBuilder.runTransform({
+      this.#assetGraphBuilder.requestGraph.runTransform({
         filePath,
         code,
         env: new Environment(env)
@@ -264,7 +265,7 @@ export default class Parcel {
     sourcePath: FilePath,
     env: EnvironmentOpts
   }): Promise<FilePath> {
-    let resolved = await this.#assetGraphBuilder.resolverRunner.resolve(
+    let resolved = await this.#assetGraphBuilder.requestGraph.resolverRunner.resolve(
       new Dependency({
         moduleSpecifier,
         sourcePath,
