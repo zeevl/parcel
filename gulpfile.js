@@ -36,17 +36,21 @@ let bootstrapClean = (exports['bootstrap:clean'] = function clean(cb) {
   rimraf('bootstrap', cb);
 });
 
+function bootstrapBuildOnly() {
+  return gulp
+    .src(paths.packageSrc)
+    .pipe(cache('packageSrc', {optimizeMemory: true}))
+    .pipe(babel(babelConfig))
+    .pipe(renameStream(relative => relative.replace('src', 'lib')))
+    .pipe(gulp.dest(paths.packageDest));
+}
+
 let bootstrapBuild = (exports['bootstrap:build'] = function bootstrapBuild() {
   // See example of merging cloned streams at gulp-clone README:
   // https://github.com/mariocasciaro/gulp-clone/blob/4476fcf34a5336c2d33c2fc4a6ab2cd163e302e7/README.md
   // Which is licensed MIT
   return merge(
-    gulp
-      .src(paths.packageSrc)
-      .pipe(cache('packageSrc', {optimizeMemory: true}))
-      .pipe(babel(babelConfig))
-      .pipe(renameStream(relative => relative.replace('src', 'lib')))
-      .pipe(gulp.dest(paths.packageDest)),
+    bootstrapBuildOnly(),
     gulp
       .src(paths.packageOther)
       .pipe(cache('packageOther', {optimizeMemory: true}))
@@ -102,7 +106,7 @@ exports.bootstrap = gulp.series(
 exports.default = exports.bootstrap;
 
 exports['bootstrap:watch'] = gulp.series(exports.bootstrap, function watch() {
-  gulp.watch('packages/*/*/src/**', bootstrapBuild);
+  gulp.watch('packages/*/*/src/**', bootstrapBuildOnly);
 });
 
 function renameStream(fn) {

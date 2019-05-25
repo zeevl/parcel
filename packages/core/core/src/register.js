@@ -55,6 +55,9 @@ export default function register(opts?: InitialParcelOptions): IDisposable {
         if (asset) {
           output = await asset.getCode();
         }
+        if (filePath.endsWith('@parcel/fs/src/index.js')) {
+          console.log('output', output);
+        }
         return output;
       }
     } catch (e) {
@@ -92,6 +95,24 @@ export default function register(opts?: InitialParcelOptions): IDisposable {
         });
       }
 
+      console.log(
+        '\n\nresolved from\n',
+        currFile,
+        'to\n',
+        targetFile,
+        'as\n',
+        resolved
+      );
+
+      console.log('from node');
+      try {
+        console.log(
+          require('resolve').sync(targetFile, {
+            basedir: currFile ?? process.cwd()
+          })
+        );
+      } catch (e) {}
+
       return resolved;
     } finally {
       isProcessing = false;
@@ -110,9 +131,20 @@ export default function register(opts?: InitialParcelOptions): IDisposable {
   // https://github.com/nodejs/node-v0.x-archive/issues/1125#issuecomment-10748203
   const originalResolveFilename = Module._resolveFilename;
   Module._resolveFilename = function parcelResolveFilename(to, from, ...rest) {
+    let normalizedFrom;
+    if (from && from.filename == null) {
+      // HACK: if a request origin's filename is `null`, fall back to cwd.
+      //       for example, in a node repl, requires originate from a null filename
+      //       but are expected to resolve relative to where the repl's cwd.
+      //       Add an `index` to the end since this gets run through `dirname`.
+      normalizedFrom = path.join(process.cwd(), 'index');
+    } else {
+      normalizedFrom = from?.filename;
+    }
+
     return isProcessing || disposed
       ? originalResolveFilename(to, from, ...rest)
-      : resolveFile(from?.filename, to);
+      : resolveFile(normalizedFrom, to);
   };
 
   let disposable = (lastDisposable = {
