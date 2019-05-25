@@ -200,10 +200,10 @@ export default class Parcel {
 
       let startTime = Date.now();
       let {assetGraph, changedAssets} = await this.#assetGraphBuilder.build();
-      dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
+      await dumpGraphToGraphViz(assetGraph, 'MainAssetGraph');
 
       let bundleGraph = await this.#bundlerRunner.bundle(assetGraph);
-      dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
+      await dumpGraphToGraphViz(bundleGraph, 'BundleGraph');
 
       await packageBundles(bundleGraph, this.#runPackage);
 

@@ -3,6 +3,7 @@
   "version": "2.0.0-alpha.0",
   "description": "Blazing fast, zero configuration web application bundler",
   "main": "lib/installPackage.js",
+  "source": "src/installPackage.js",
   "license": "MIT",
   "repository": {
     "type": "git",
