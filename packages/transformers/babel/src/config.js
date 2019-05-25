@@ -26,6 +26,7 @@ export default async function getBabelConfig(asset: MutableAsset) {
 
   let result = {};
   mergeConfigs(result, babelrc);
+  return result;
 
   // Add a generated babel-preset-env config if it is not already specified in the babelrc
   let hasEnv =
