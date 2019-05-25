@@ -109,6 +109,31 @@ exports['bootstrap:watch'] = gulp.series(exports.bootstrap, function watch() {
   gulp.watch('packages/*/*/src/**', bootstrapBuildOnly);
 });
 
+let build = (exports.build = async function build() {
+  const Parcel = require('./bootstrap/packages/core/core').default;
+  let source = path.resolve(
+    './packages/core/core',
+    require('./packages/core/core/package.json').source
+  );
+
+  let defaultConfigPackage = './bootstrap/packages/configs/default';
+  let defaultConfig = {
+    ...require(defaultConfigPackage),
+    filePath: require.resolve(defaultConfigPackage)
+  };
+
+  console.log('source', source);
+  let parcel = new Parcel({
+    entries: [source],
+    logLevel: 'verbose',
+    defaultConfig
+  });
+
+  await parcel.run();
+
+  // console.log('YO PARCEL', Parcel);
+});
+
 function renameStream(fn) {
   return new TapStream(vinyl => {
     let relative = path.relative(vinyl.base, vinyl.path);
