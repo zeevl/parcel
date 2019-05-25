@@ -11,15 +11,15 @@
     "packages/*/*"
   ],
   "scripts": {
-    "build": "gulp",
-    "test": "yarn build && lerna run test --stream",
-    "test-ci": "yarn build && lerna run test-ci --stream",
+    "bootstrap": "gulp bootstrap",
+    "bootstrap:clean": "gulp bootstrap:clean",
+    "test": "lerna run test --stream",
+    "test-ci": "lerna run test-ci --stream",
     "lint": "eslint . && prettier \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\" --list-different",
     "format": "prettier --write \"./packages/*/*/{src,bin,test}/**/*.{js,json,md}\"",
     "precommit": "lint-staged",
     "clean-test": "rimraf packages/core/integration-tests/.parcel-cache && rimraf packages/core/integration-tests/dist",
-    "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rm -rf ./lib && yarn",
-    "postinstall": "yarn build"
+    "clean": "yarn clean-test && lerna clean --yes && lerna exec -- rm -rf ./lib && yarn"
   },
   "devDependencies": {
     "del": "^4.1.1",

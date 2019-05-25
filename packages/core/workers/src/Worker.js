@@ -52,7 +52,7 @@ export default class Worker extends EventEmitter {
       let arg = filteredArgs[i];
       if (
         (arg === '-r' || arg === '--require') &&
-        filteredArgs[i + 1] === '@parcel/register'
+        filteredArgs[i + 1] === '@parcel/register-dev'
       ) {
         filteredArgs.splice(i, 2);
         i--;

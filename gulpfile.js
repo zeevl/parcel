@@ -1,16 +1,17 @@
 const gulp = require('gulp');
 const babel = require('gulp-babel');
 const rimraf = require('rimraf');
-const clone = require('gulp-clone');
 const merge = require('merge-stream');
 const cache = require('gulp-cached');
 const path = require('path');
 const {Transform} = require('stream');
+const {spawn} = require('child_process');
+const fs = require('fs');
 
 const babelConfig = require('./babel.config.js');
 
 const paths = {
-  src: [
+  packageSrc: [
     'packages/*/*/src/**/*.js',
     '!packages/*/scope-hoisting/src/helpers.js',
     '!**/loaders/**',
@@ -19,54 +20,89 @@ const paths = {
     '!packages/core/integration-tests/**',
     '!packages/core/workers/test/integration/**'
   ],
-  otherSrc: [
-    'packages/*/*/src/**',
+  packageOther: [
+    'packages/**',
     '!packages/**/*.js',
     'packages/*/scope-hoisting/src/helpers.js',
     'packages/*/*/src/**/loaders/**',
     'packages/*/*/src/**/prelude.js'
   ],
-  dest: 'packages'
+  rest: ['**', '!packages/**', '!node_modules/**'],
+  packageDest: path.join('bootstrap', 'packages'),
+  dest: 'bootstrap'
 };
 
-exports.clean = function clean(cb) {
-  rimraf('packages/*/*/lib', cb);
-};
+let bootstrapClean = (exports['bootstrap:clean'] = function clean(cb) {
+  rimraf('bootstrap', cb);
+});
 
-function build() {
-  const sources = gulp
-    .src(paths.src)
-    .pipe(cache('build', {optimizeMemory: true}));
-
+let bootstrapBuild = (exports['bootstrap:build'] = function bootstrapBuild() {
   // See example of merging cloned streams at gulp-clone README:
   // https://github.com/mariocasciaro/gulp-clone/blob/4476fcf34a5336c2d33c2fc4a6ab2cd163e302e7/README.md
   // Which is licensed MIT
   return merge(
     gulp
-      .src(paths.otherSrc)
-      .pipe(cache('build', {optimizeMemory: true}))
-      .pipe(renameStream(relative => relative.replace('src', 'lib')))
-      .pipe(gulp.dest(paths.dest)),
-    sources
-      .pipe(clone())
-      .pipe(
-        renameStream(relative =>
-          relative.replace('src', 'lib').replace(/\.js$/, '.js.flow')
-        )
-      )
-      .pipe(gulp.dest(paths.dest)),
-    sources
-      .pipe(clone())
+      .src(paths.packageSrc)
+      .pipe(cache('packageSrc', {optimizeMemory: true}))
       .pipe(babel(babelConfig))
       .pipe(renameStream(relative => relative.replace('src', 'lib')))
+      .pipe(gulp.dest(paths.packageDest)),
+    gulp
+      .src(paths.packageOther)
+      .pipe(cache('packageOther', {optimizeMemory: true}))
+      .pipe(renameStream(relative => relative.replace('src', 'lib')))
+      .pipe(gulp.dest(paths.packageDest)),
+    gulp
+      .src(paths.rest)
+      .pipe(cache('rest', {optimizeMemory: true}))
       .pipe(gulp.dest(paths.dest))
   );
-}
+});
 
-exports.default = gulp.series(exports.clean, build);
+let bootstrapYarn = (exports['bootstrap:build'] = function bootstrapYarn(cb) {
+  let spawned = spawn('yarn', ['--production'], {
+    cwd: path.join(__dirname, 'bootstrap'),
+    stdio: 'inherit'
+  });
+  spawned.on('close', cb);
+});
 
-exports.watch = gulp.series(build, function watch() {
-  gulp.watch(paths.src, build);
+let bootstrapLink = (exports['bootstrap:link'] = function bootstrapLink(cb) {
+  let linkDest = path.join(
+    __dirname,
+    'node_modules',
+    '@parcel',
+    'register-dev'
+  );
+
+  // remove an existing symlink
+  try {
+    fs.unlinkSync(linkDest);
+  } catch (e) {
+    // Ignore ENOENT where the symlink didn't already exist
+    if (e.code !== 'ENOENT') {
+      throw e;
+    }
+  }
+
+  fs.symlinkSync(
+    path.join('..', '..', 'bootstrap', 'packages', 'core', 'register'),
+    linkDest
+  );
+
+  cb();
+});
+
+exports.bootstrap = gulp.series(
+  bootstrapClean,
+  bootstrapBuild,
+  bootstrapYarn,
+  bootstrapLink
+);
+exports.default = exports.bootstrap;
+
+exports['bootstrap:watch'] = gulp.series(exports.bootstrap, function watch() {
+  gulp.watch('packages/*/*/src/**', bootstrapBuild);
 });
 
 function renameStream(fn) {
