@@ -1300,4 +1300,26 @@ describe('scope hoisting', function() {
       assert.deepEqual(output, [4, 2]);
     });
   });
+
+  it('should correctly hoist var declarations in nested blocks', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/commonjs/var-scope-hoisting/a.js'
+      )
+    );
+    let output = await run(b);
+    assert.deepEqual(output, 11);
+  });
+
+  it('should correctly hoist var declarations in nested blocks when wrapping', async function() {
+    let b = await bundle(
+      path.join(
+        __dirname,
+        '/integration/scope-hoisting/commonjs/wrap-var-scope-hoisting/a.js'
+      )
+    );
+    let output = await run(b);
+    assert.deepEqual(output, '1,2,123');
+  });
 });
