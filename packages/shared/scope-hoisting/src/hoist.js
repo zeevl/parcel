@@ -106,6 +106,30 @@ const VISITOR = {
       });
 
       path.scope.setData('shouldWrap', shouldWrap);
+
+      // Hoist all `var` declarations into the top-level scope.
+      let varIds = [];
+      for (let binding of Object.values(path.scope.bindings)) {
+        if (
+          binding.kind == 'var' &&
+          binding.path.find(p => p.isDeclaration()).parentPath !== path
+        ) {
+          varIds.push(binding.identifier);
+          hoistVarDeclaration(binding.path);
+          //TODO update binding.path?
+
+          binding.constantViolations.forEach(v => {
+            if (v.isVariableDeclarator() /* -> kind = "var" */) {
+              hoistVarDeclaration(v);
+            }
+          });
+        }
+      }
+      if (varIds.length) {
+        path.unshiftContainer('body', [
+          t.variableDeclaration('var', varIds.map(v => t.variableDeclarator(v)))
+        ]);
+      }
     },
 
     exit(path, asset: Asset) {
@@ -569,7 +593,13 @@ function addExport(asset: Asset, path, local, exported) {
 
   rename(scope, local.name, identifier.name);
 
-  constantViolations.forEach(path => path.insertAfter(t.cloneDeep(assignNode)));
+  constantViolations.forEach(path => {
+    if (path.isVariableDeclarator()) {
+      path.parentPath.insertAfter(t.cloneDeep(assignNode));
+    } else {
+      path.insertAfter(t.cloneDeep(assignNode));
+    }
+  });
 }
 
 function hasImport(asset: Asset, id) {
@@ -618,5 +648,41 @@ function getExportsIdentifier(asset: Asset, scope) {
     }
 
     return id;
+  }
+}
+
+function hoistVarDeclaration(path) {
+  if (
+    t.isForStatement(path.parentPath.parent) &&
+    path.parentPath.key == 'init'
+  ) {
+    // The ForStatement init part can only have only expression, so we need to
+    // add the VariableDeclarators to a temporary list until the last declarator
+    // is removed (which *will* happen).
+    let forStatement = path.parentPath.parentPath;
+    forStatement.getData('initQueue', []).push([path.node.id, path.node.init]);
+
+    if (path.parent.declarations.length == 1) {
+      let initAssignments = forStatement.getData('initQueue', []);
+      path.parentPath.replaceWith(
+        t.sequenceExpression(
+          initAssignments.map(([id, init]) =>
+            t.assignmentExpression('=', id, init)
+          )
+        )
+      );
+    } else {
+      path.remove();
+    }
+  } else {
+    // Otherwise just append an assigment and remove the declarator.
+    if (path.node.init) {
+      path.parentPath.insertAfter(
+        t.expressionStatement(
+          t.assignmentExpression('=', path.node.id, path.node.init)
+        )
+      );
+    }
+    path.remove();
   }
 }

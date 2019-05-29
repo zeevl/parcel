@@ -8,6 +8,7 @@ if (y > 4) {
 
 if (y > 6) {
   const m = 4;
+  console.log(m);
 }
 
 function test() {
