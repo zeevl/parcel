@@ -65,7 +65,7 @@ export async function runPackage(bundle: Bundle, bundleGraph: BundleGraph) {
 
     if (!entryBundleNode.value.target) {
       console.log('TARGET NULLISH IN WORKER RUN PACKAGE');
-      console.log('ENTRY BUNDLE', entryBundleNode.value.bundle);
+      console.log('ENTRY BUNDLE', entryBundleNode.value);
       console.log('PackagerRunner PID', process.pid);
     }
   });
