@@ -9,6 +9,8 @@ import PackagerRunner from './PackagerRunner';
 import Config from './Config';
 import Cache from '@parcel/cache';
 
+import invariant from 'assert';
+
 type Options = {|
   config: Config,
   options: ParcelOptions,
@@ -41,7 +43,32 @@ export function runTransform(req: AssetRequest) {
   return transformerRunner.transform(req);
 }
 
-export function runPackage(bundle: Bundle, bundleGraph: BundleGraph) {
+export async function runPackage(bundle: Bundle, bundleGraph: BundleGraph) {
+  await null;
+  bundle.assetGraph.traverse(node => {
+    if (node.type !== 'dependency') {
+      return;
+    }
+
+    let dep = node.value;
+    if (!dep.isURL || !dep.isAsync) {
+      return;
+    }
+
+    let [bundleGroupNode] = bundle.assetGraph.getNodesConnectedFrom(node);
+    invariant(bundleGroupNode && bundleGroupNode.type === 'bundle_group');
+
+    let [entryBundleNode] = bundle.assetGraph.getNodesConnectedFrom(
+      bundleGroupNode
+    );
+    invariant(entryBundleNode && entryBundleNode.type === 'bundle_reference');
+
+    if (!entryBundleNode.value.target) {
+      console.log('TARGET NULLISH IN WORKER RUN PACKAGE');
+      console.log('ENTRY BUNDLE', entryBundleNode.value.bundle);
+      console.log('PackagerRunner PID', process.pid);
+    }
+  });
   if (!packagerRunner) {
     throw new Error('.runPackage() called before .init()');
   }

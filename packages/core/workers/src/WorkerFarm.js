@@ -110,16 +110,61 @@ export default class WorkerFarm extends EventEmitter {
       // While we're waiting, just run on the main thread.
       // This significantly speeds up startup time.
       if (this.shouldUseRemoteWorkers()) {
+        console.log('DOOR A');
         return this.addCall(method, [...args, false]);
       } else {
+        console.log('DOOR B');
         if (this.options.warmWorkers && this.shouldStartRemoteWorkers()) {
-          this.warmupWorker(method, args);
+          //this.warmupWorker(method, args);
         }
-
         let processedArgs = deserialize(serialize([...args, false]));
-        return deserialize(
-          serialize(this.localWorker[method](...processedArgs))
-        );
+        if (method === 'runPackage') {
+          let bundle = args[0];
+          let processedBundle = processedArgs[0];
+
+          let targetNullish = false;
+          processedBundle.assetGraph.traverse(node => {
+            if (node.type !== 'dependency') {
+              return;
+            }
+
+            let dep = node.value;
+            if (!dep.isURL || !dep.isAsync) {
+              return;
+            }
+
+            let [bundleGroupNode] = bundle.assetGraph.getNodesConnectedFrom(
+              node
+            );
+            invariant(
+              bundleGroupNode && bundleGroupNode.type === 'bundle_group'
+            );
+
+            let [entryBundleNode] = bundle.assetGraph.getNodesConnectedFrom(
+              bundleGroupNode
+            );
+            invariant(
+              entryBundleNode && entryBundleNode.type === 'bundle_reference'
+            );
+
+            console.log('ENTRY BUNDLE TARGET', entryBundleNode.value.target);
+            if (!entryBundleNode.value.target) {
+              targetNullish = true;
+            }
+          });
+
+          if (targetNullish) {
+            console.log('PREPROCESSED', bundle);
+            console.log('\n\n\n\n\n\n\n\n\n\n');
+
+            console.log('SERIALIZED', serialize(bundle));
+            console.log('\n\n\n\n\n\n\n\n\n\n');
+
+            console.log('PROCESSED', bundle);
+          }
+        }
+        console.log('LOCAL WORKER PID', process.pid);
+        return this.localWorker[method](...processedArgs);
       }
     };
   }
@@ -384,7 +429,7 @@ export default class WorkerFarm extends EventEmitter {
   static createReverseHandle(fn: () => mixed) {
     if (WorkerFarm.isWorker()) {
       throw new Error(
-        'Cannot call WorkerFarm.createHandle() from within Worker'
+        'Cannot call WorkerFarm.createReverseHandle() from within Worker'
       );
     }
 

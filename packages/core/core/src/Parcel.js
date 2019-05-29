@@ -324,12 +324,37 @@ function packageBundles(
 ): Promise<mixed> {
   let promises = [];
   bundleGraph.traverseBundles(bundle => {
+    bundle.assetGraph.traverse(node => {
+      if (node.type !== 'dependency') {
+        return;
+      }
+
+      let dep = node.value;
+      if (!dep.isURL || !dep.isAsync) {
+        return;
+      }
+
+      let [bundleGroupNode] = bundle.assetGraph.getNodesConnectedFrom(node);
+      invariant(bundleGroupNode && bundleGroupNode.type === 'bundle_group');
+
+      let [entryBundleNode] = bundle.assetGraph.getNodesConnectedFrom(
+        bundleGroupNode
+      );
+      invariant(entryBundleNode && entryBundleNode.type === 'bundle_reference');
+
+      if (!entryBundleNode.value.target) {
+        console.log('TARGET NULLISH IN PARCEL');
+      }
+    });
+
     promises.push(
       runPackage(bundle, bundleGraph).then(stats => {
         bundle.stats = stats;
       })
     );
   });
+
+  console.log('PACKAGING');
 
   return Promise.all(promises);
 }

@@ -293,6 +293,10 @@ class BundleReference implements IBundleReference {
     this.#bundle = bundle;
   }
 
+  get bundle() {
+    return this.#bundle;
+  }
+
   get id() {
     return this.#bundle.id;
   }
