@@ -49,6 +49,9 @@ jobs:
         displayName: 'Type check with Flow'
       - script: yarn lint
         displayName: 'Lint'
+      - script: npm run coverage
+        # https://github.com/yarnpkg/yarn/issues/6746
+        displayName: 'Collect coverage'
       - task: PublishTestResults@2
         displayName: 'Publish Test Results'
         condition: succeededOrFailed()
@@ -60,5 +63,4 @@ jobs:
         condition: succeededOrFailed()
         inputs:
           codeCoverageTool: 'cobertura'
-          summaryFileLocation: '**/coverage/cobertura-coverage.xml'
-          reportDirectory: '**/parcel-bundler/coverage'
+          summaryFileLocation: 'coverage/cobertura-coverage.xml'
