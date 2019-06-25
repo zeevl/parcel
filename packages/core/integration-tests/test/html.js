@@ -5,12 +5,13 @@ const {
   assertBundles,
   assertBundleTree,
   removeDistDirectory,
-  distDir
+  distDir,
+  run
 } = require('@parcel/test-utils');
 const path = require('path');
 
 describe('html', function() {
-  afterEach(async () => {
+  beforeEach(async () => {
     await removeDistDirectory();
   });
 
@@ -52,6 +53,20 @@ describe('html', function() {
         assert(html.includes(file));
       }
     }
+
+    let jsBundle;
+    b.traverseBundles((bundle, ctx, traversal) => {
+      if (bundle.type === 'js') {
+        jsBundle = bundle;
+        traversal.stop();
+      }
+    });
+
+    let value = null;
+    await run(jsBundle, {
+      alert: v => (value = v)
+    });
+    assert.equal(value, 'Hi');
   });
 
   it('should find href attr when not first', async function() {

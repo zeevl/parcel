@@ -1,12 +1,21 @@
 const assert = require('assert');
 const path = require('path');
-const {bundle: _bundle, run} = require('@parcel/test-utils');
+const {
+  bundle: _bundle,
+  run,
+  assertBundles,
+  removeDistDirectory
+} = require('@parcel/test-utils');
 const fs = require('@parcel/fs');
 
 const bundle = (name, opts = {}) =>
   _bundle(name, Object.assign({scopeHoist: true}, opts));
 
 describe('scope hoisting', function() {
+  beforeEach(async () => {
+    await removeDistDirectory();
+  });
+
   describe('es6', function() {
     it('supports default imports and exports of expressions', async function() {
       let b = await bundle(
@@ -1315,6 +1324,39 @@ describe('scope hoisting', function() {
 
       let output = await run(b);
       assert.deepEqual(output, [4, 2]);
+    });
+  });
+
+  describe('integration', function() {
+    it('should not throw when included from html', async function() {
+      let b = await bundle(
+        path.join(__dirname, '/integration/scope-hoisting/html/index.html')
+      );
+
+      await assertBundles(b, [
+        {
+          name: 'index.html',
+          assets: ['index.html']
+        },
+        {
+          type: 'js',
+          assets: ['index.js']
+        }
+      ]);
+
+      let jsBundle;
+      b.traverseBundles((bundle, ctx, traversal) => {
+        if (bundle.type === 'js') {
+          jsBundle = bundle;
+          traversal.stop();
+        }
+      });
+
+      let value = null;
+      await run(jsBundle, {
+        alert: v => (value = v)
+      });
+      assert.equal(value, 'Hi');
     });
   });
 });
