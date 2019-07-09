@@ -173,7 +173,8 @@ export type ParcelOptions = {|
   logLevel: LogLevel,
   rootDir: FilePath,
   targets: Array<Target>,
-  projectRoot: FilePath
+  projectRoot: FilePath,
+  lockFile?: FilePath
 |};
 
 export type ServerOptions = {|

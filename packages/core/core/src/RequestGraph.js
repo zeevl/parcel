@@ -102,6 +102,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   config: ParcelConfig;
   options: ParcelOptions;
   globNodes: Array<GlobNode>;
+  depVersionRequestNodes: Array<DepVersionRequestNode>;
 
   constructor({
     onAssetRequestComplete,
@@ -114,6 +115,7 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     this.options = options;
     this.queue = new PromiseQueue();
     this.globNodes = [];
+    this.depVersionRequestNodes = [];
     this.onAssetRequestComplete = onAssetRequestComplete;
     this.onDepPathRequestComplete = onDepPathRequestComplete;
     this.config = config;
@@ -153,6 +155,8 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
     this.processNode(node);
     if (node.type === 'glob') {
       this.globNodes.push(node);
+    } else if (node.type === 'dep_version_request') {
+      this.depVersionRequestNodes.push(node);
     }
     return super.addNode(node);
   }
@@ -429,6 +433,12 @@ export default class RequestGraph extends Graph<RequestGraphNode> {
   // TODO: add edge types to make invalidation more flexible and less precarious
   respondToFSEvents(events: Array<Event>) {
     for (let {path, type} of events) {
+      if (path === this.options.lockFile) {
+        for (let depVersionRequestNode of this.depVersionRequestNodes) {
+          this.invalidateNode(depVersionRequestNode);
+        }
+      }
+
       let node = this.getNode(path);
 
       let connectedNodes =
